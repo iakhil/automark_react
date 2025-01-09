@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Teacher Files</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input[type="file"], button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            text-align: center;
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-list li {
+            margin-bottom: 10px;
+        }
+        .file-list a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .file-list a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Question Paper and Rubric</h1>
+
+        <!-- Display messages -->
+        {% if message %}
+        <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <!-- Upload Form -->
+        <form action="/upload_teacher" method="post" enctype="multipart/form-data">
+            <label for="file">Upload Question Paper:</label>
+            <input type="file" id="file" name="file" required>
+
+            <label for="rubric_file">Upload Rubric:</label>
+            <input type="file" id="rubric_file" name="rubric_file" required>
+
+            <button type="submit">Upload</button>
+        </form>
+
+        <!-- List of uploaded files -->
+        <h2>Already Uploaded Files</h2>
+        <ul class="file-list">
+            {% for file_id, file_url in files %}
+            <li>
+                <a href="{{ file_url }}" target="_blank">{{ file_id }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

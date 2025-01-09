@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 import os
-import cloudinary
 from flask_cors import CORS
+import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -21,7 +21,6 @@ cloudinary.config(
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")
 )
-
 
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
@@ -43,24 +42,27 @@ def grade_response(student_response, rubrix):
 def upload_teacher():
     if request.method == 'POST':
         if 'file' not in request.files or 'rubric_file' not in request.files:
-            return jsonify({'error': 'Both question paper and rubric files are required!'}), 400
+            return render_template('upload_teacher.html', message='Both question paper and rubric files are required!')
 
         question_paper = request.files['file']
         rubric_file = request.files['rubric_file']
 
         if question_paper.filename == '' or rubric_file.filename == '':
-            return jsonify({'error': 'No file selected!'}), 400
+            return render_template('upload_teacher.html', message='No file selected!')
 
         # Upload files to Cloudinary
         question_paper_result = cloudinary.uploader.upload(question_paper, folder="teachers")
         rubric_file_result = cloudinary.uploader.upload(rubric_file, folder="teachers")
 
-        return jsonify({
-            'message': 'Question paper and rubric uploaded successfully!',
-            'question_paper_url': question_paper_result['url'],
-            'rubric_file_url': rubric_file_result['url']
-        }), 200
-    return render_template('upload_teacher.html')
+        return render_template('upload_teacher.html', message='Uploaded successfully')
+
+    # Fetch already uploaded files for the teacher
+    uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+    file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+
+
+    print("FILE LIST: ", file_list)
+    return render_template('upload_teacher.html', files=file_list)
 
 # Route for student login and uploading their responses
 @app.route('/upload_student', methods=['GET', 'POST'])

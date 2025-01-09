@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Teacher Files</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+        label {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+        input, button {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 12px;
+            font-size: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 12px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .note {
+            font-size: 0.9rem;
+            color: #777;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Teacher Files</h1>
+        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
+        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
+        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
+            <label for="file">Upload Question Paper:</label>
+            <input type="file" id="file" name="file" required>
+
+            <label for="rubric_file">Upload Rubric:</label>
+            <input type="file" id="rubric_file" name="rubric_file" required>
+
+            <button type="submit">Upload</button>
+        </form>
+        <p class="note">Ensure both files are uploaded for grading purposes.</p>
+    </div>
+</body>
+</html>
