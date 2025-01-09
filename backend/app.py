@@ -13,9 +13,9 @@ load_dotenv()
 
 # Configure Cloudinary
 cloudinary.config(
-    cloud_name="your_cloud_name",
-    api_key="your_api_key",
-    api_secret="your_api_secret"
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
 )
 
 client = OpenAI(
