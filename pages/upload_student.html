@@ -6,67 +6,79 @@
     <title>Upload Student Response</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f9;
+            background-color: #f0f4f8;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             height: 100vh;
+            color: #333;
         }
-        header {
-            width: 100%;
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 0;
-            text-align: center;
-            font-size: 1.5rem;
-        }
-        form {
+        .container {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
             width: 100%;
-            text-align: left;
+            max-width: 450px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4CAF50;
         }
         label {
-            font-size: 1rem;
-            margin-bottom: 5px;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
             display: block;
         }
         input, button {
             width: 100%;
             margin-bottom: 15px;
-            padding: 10px;
+            padding: 12px;
             font-size: 1rem;
             border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
         }
         button {
             background-color: #4CAF50;
             color: white;
             border: none;
             cursor: pointer;
-            font-size: 1.1rem;
+            font-size: 1rem;
+            padding: 12px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
         }
         button:hover {
             background-color: #45a049;
         }
+        .note {
+            font-size: 0.9rem;
+            color: #777;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <header>
-        Student Response Upload
-    </header>
-    <form action="/upload_student" method="post" enctype="multipart/form-data">
-        <label for="file">Upload Response File:</label>
-        <input type="file" id="file" name="file" required>
+    <div class="container">
+        <h1>Upload Response</h1>
+        <form action="/upload_student" method="post" enctype="multipart/form-data">
+            <label for="file">Upload Your Response:</label>
+            <input type="file" id="file" name="file" required>
 
-        <button type="submit">Upload</button>
-    </form>
+            <button type="submit">Upload</button>
+        </form>
+        <p class="note">Make sure your response file is complete and accurate before uploading.</p>
+    </div>
 </body>
 </html>
