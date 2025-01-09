@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Upload</title>
+</head>
+<body>
+    <h1>Upload Question Paper and Rubric</h1>
+    <form action="/upload_teacher" method="post" enctype="multipart/form-data">
+        <label for="file">Question Paper:</label>
+        <input type="file" name="file" id="file" required>
+        <br><br>
+        <label for="rubrix">Rubric:</label>
+        <textarea name="rubrix" id="rubrix" rows="10" cols="50" required></textarea>
+        <br><br>
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>
