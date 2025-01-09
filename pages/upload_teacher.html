@@ -3,17 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Upload</title>
+    <title>Upload Teacher Files</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        header {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            text-align: left;
+        }
+        label {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input, textarea, button {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            font-size: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
-    <h1>Upload Question Paper and Rubric</h1>
+    <header>
+        Teacher File Upload
+    </header>
     <form action="/upload_teacher" method="post" enctype="multipart/form-data">
-        <label for="file">Question Paper:</label>
-        <input type="file" name="file" id="file" required>
-        <br><br>
-        <label for="rubrix">Rubric:</label>
-        <textarea name="rubrix" id="rubrix" rows="10" cols="50" required></textarea>
-        <br><br>
+        <label for="file">Upload Question Paper:</label>
+        <input type="file" id="file" name="file" required>
+
+        <label for="rubrix">Enter Rubric:</label>
+        <textarea id="rubrix" name="rubrix" rows="6" required></textarea>
+
         <button type="submit">Upload</button>
     </form>
 </body>
