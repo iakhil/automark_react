@@ -13,16 +13,15 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            color: #333;
+            min-height: 100vh;
         }
         .container {
             background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 450px;
+            max-width: 600px;
         }
         h1 {
             font-size: 1.8rem;
@@ -30,51 +29,66 @@
             margin-bottom: 20px;
             color: #4CAF50;
         }
+        form {
+            margin-bottom: 20px;
+        }
         label {
-            font-size: 0.95rem;
-            margin-bottom: 8px;
+            font-size: 1rem;
+            margin-bottom: 5px;
             display: block;
         }
-        input, button {
+        input[type="file"], button {
             width: 100%;
+            padding: 10px;
             margin-bottom: 15px;
-            padding: 12px;
-            font-size: 1rem;
             border: 1px solid #ddd;
-            border-radius: 8px;
+            border-radius: 5px;
             box-sizing: border-box;
-        }
-        input:focus {
-            border-color: #4CAF50;
-            outline: none;
-            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
         }
         button {
             background-color: #4CAF50;
             color: white;
+            font-size: 1rem;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
-            padding: 12px;
-            font-weight: bold;
             transition: background-color 0.3s ease;
         }
         button:hover {
             background-color: #45a049;
         }
-        .note {
-            font-size: 0.9rem;
-            color: #777;
+        .message {
             text-align: center;
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-list li {
+            margin-bottom: 10px;
+        }
+        .file-list a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .file-list a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Upload Teacher Files</h1>
-        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
-        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
-        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
+        <h1>Upload Question Paper and Rubric</h1>
+
+        <!-- Display messages -->
+        {% if message %}
+        <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <!-- Upload Form -->
+        <form action="/upload_teacher" method="post" enctype="multipart/form-data">
             <label for="file">Upload Question Paper:</label>
             <input type="file" id="file" name="file" required>
 
@@ -83,7 +97,16 @@
 
             <button type="submit">Upload</button>
         </form>
-        <p class="note">Ensure both files are uploaded for grading purposes.</p>
+
+        <!-- List of uploaded files -->
+        <h2>Already Uploaded Files</h2>
+        <ul class="file-list">
+            {% for file_id, file_url in files %}
+            <li>
+                <a href="{{ file_url }}" target="_blank">{{ file_id }}</a>
+            </li>
+            {% endfor %}
+        </ul>
     </div>
 </body>
 </html>
