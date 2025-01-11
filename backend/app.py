@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 import os
 from flask_cors import CORS
 import cloudinary
+import cloudinary.api
 import cloudinary.uploader
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -37,32 +38,43 @@ def grade_response(student_response, rubrix):
     )
     return response.choices[0].message.content.strip()
 
-# Route for teacher login and uploading question paper and rubric
 @app.route('/upload_teacher', methods=['GET', 'POST'])
 def upload_teacher():
     if request.method == 'POST':
         if 'file' not in request.files or 'rubric_file' not in request.files:
-            return render_template('upload_teacher.html', message='Both question paper and rubric files are required!')
+            # Render the page with an error message
+            uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+            file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+            return render_template('upload_teacher.html', message='Both question paper and rubric files are required!', files=file_list)
 
         question_paper = request.files['file']
         rubric_file = request.files['rubric_file']
 
         if question_paper.filename == '' or rubric_file.filename == '':
-            return render_template('upload_teacher.html', message='No file selected!')
+            # Render the page with an error message
+            uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+            file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+            return render_template('upload_teacher.html', message='No file selected!', files=file_list)
 
         # Upload files to Cloudinary
-        question_paper_result = cloudinary.uploader.upload(question_paper, folder="teachers")
-        rubric_file_result = cloudinary.uploader.upload(rubric_file, folder="teachers")
+        cloudinary.uploader.upload(question_paper, folder="teachers")
+        cloudinary.uploader.upload(rubric_file, folder="teachers")
 
-        return render_template('upload_teacher.html', message='Uploaded successfully')
+        # Fetch the updated list of uploaded files
+        uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+        file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+
+        print(f"UPLOADED FILES {uploaded_files}")
+
+        # Render the page with a success message
+        return render_template('upload_teacher.html', message='Uploaded successfully', files=file_list)
 
     # Fetch already uploaded files for the teacher
     uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
     file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
 
-
-    print("FILE LIST: ", file_list)
     return render_template('upload_teacher.html', files=file_list)
+
 
 # Route for student login and uploading their responses
 @app.route('/upload_student', methods=['GET', 'POST'])
