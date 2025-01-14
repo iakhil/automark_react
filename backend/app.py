@@ -6,6 +6,8 @@ import cloudinary
 import cloudinary.api
 import cloudinary.uploader
 from dotenv import load_dotenv
+from pdf2image import convert_from_bytes
+from io import BytesIO
 from openai import OpenAI
 
 app = Flask(__name__, static_folder='static')
@@ -38,36 +40,70 @@ def grade_response(student_response, rubrix):
     )
     return response.choices[0].message.content.strip()
 
+# Helper function: Convert PDF to image and upload to Cloudinary
+def convert_pdf_to_image_and_upload(pdf_file, folder):
+    # Convert PDF to images
+    images = convert_from_bytes(pdf_file.read(), dpi=300)
+    uploaded_urls = []
+
+    for i, image in enumerate(images):
+        # Save each page to a BytesIO object
+        img_byte_array = BytesIO()
+        image.save(img_byte_array, format='JPEG')
+        img_byte_array.seek(0)
+
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            img_byte_array,
+            folder=folder,
+            public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{i + 1}"
+        )
+        uploaded_urls.append(upload_result['url'])
+
+    return uploaded_urls
+
+
 @app.route('/upload_teacher', methods=['GET', 'POST'])
 def upload_teacher():
     if request.method == 'POST':
-        if 'file' not in request.files or 'rubric_file' not in request.files:
-            # Render the page with an error message
+        # Check for all required files
+        if 'file' not in request.files or 'rubric_file' not in request.files or 'answer_sheet' not in request.files:
             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
-            return render_template('upload_teacher.html', message='Both question paper and rubric files are required!', files=file_list)
+            return render_template('upload_teacher.html', message='All three files are required!', files=file_list)
 
         question_paper = request.files['file']
         rubric_file = request.files['rubric_file']
+        answer_sheet = request.files['answer_sheet']
 
-        if question_paper.filename == '' or rubric_file.filename == '':
-            # Render the page with an error message
+        if question_paper.filename == '' or rubric_file.filename == '' or answer_sheet.filename == '':
             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
             return render_template('upload_teacher.html', message='No file selected!', files=file_list)
 
-        # Upload files to Cloudinary
-        cloudinary.uploader.upload(question_paper, folder="teachers")
-        cloudinary.uploader.upload(rubric_file, folder="teachers")
+        # Convert and upload Question Paper PDF
+        question_paper_urls = convert_pdf_to_image_and_upload(question_paper, folder="teachers/question_papers")
+        
+        # Convert and upload Rubric PDF
+        rubric_urls = convert_pdf_to_image_and_upload(rubric_file, folder="teachers/rubrics")
+        
+        # Convert and upload Student Answer Sheet PDF
+        answer_sheet_urls = convert_pdf_to_image_and_upload(answer_sheet, folder="teachers/answer_sheets")
 
         # Fetch the updated list of uploaded files
         uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
         file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
 
-        print(f"UPLOADED FILES {uploaded_files}")
+        # Log the uploaded URLs for debugging
+        print(f"Question Paper URLs: {question_paper_urls}")
+        print(f"Rubric URLs: {rubric_urls}")
+        print(f"Answer Sheet URLs: {answer_sheet_urls}")
 
-        # Render the page with a success message
-        return render_template('upload_teacher.html', message='Uploaded successfully', files=file_list)
+        return render_template(
+            'upload_teacher.html',
+            message='Uploaded successfully',
+            files=file_list
+        )
 
     # Fetch already uploaded files for the teacher
     uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
@@ -76,7 +112,6 @@ def upload_teacher():
     return render_template('upload_teacher.html', files=file_list)
 
 
-# Route for student login and uploading their responses
 @app.route('/upload_student', methods=['GET', 'POST'])
 def upload_student():
     if request.method == 'POST':
@@ -88,22 +123,18 @@ def upload_student():
         if file.filename == '':
             return jsonify({'error': 'No file selected!'}), 400
 
-        # Upload student response to Cloudinary
-        student_response_result = cloudinary.uploader.upload(file, folder="students")
-
-        # Fetch rubric file URL (assumes a single rubric file per teacher)
-        rubric_file_url = None  # Replace this logic with a persistent lookup mechanism
-
-        if not rubric_file_url:
-            return jsonify({'error': 'Rubric file not found! Please upload it first.'}), 400
+        # Convert student response PDF to images and upload to Cloudinary
+        student_response_urls = convert_pdf_to_image_and_upload(file, folder="students")
 
         # Placeholder: Fetch rubric content and student response content from Cloudinary
         rubrix = "Example rubric content fetched from Cloudinary"
         student_response = "Example student response fetched from Cloudinary"
 
+        # Grade the response
         grade = grade_response(student_response, rubrix)
 
-        return jsonify({'grade': grade, 'response_url': student_response_result['url']}), 200
+        return jsonify({'grade': grade, 'response_urls': student_response_urls}), 200
+
     return render_template('upload_student.html')
 
 if __name__ == '__main__':

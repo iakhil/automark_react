@@ -80,7 +80,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Upload Question Paper and Rubric</h1>
+        <h1>Upload Question Paper, Rubric, and Answer Sheet</h1>
 
         <!-- Display messages -->
         {% if message %}
@@ -95,12 +95,14 @@
             <label for="rubric_file">Upload Rubric:</label>
             <input type="file" id="rubric_file" name="rubric_file" required>
 
+            <label for="answer_sheet">Upload Student Answer Sheet:</label>
+            <input type="file" id="answer_sheet" name="answer_sheet" required>
+
             <button type="submit">Upload</button>
         </form>
 
         <!-- List of uploaded files -->
         <h2>Already Uploaded Files</h2>
-
         <ul class="file-list">
             {% for file_id, file_url in files %}
             <li>
@@ -114,8 +116,6 @@
             </li>
             {% endfor %}
         </ul>
-        
-
     </div>
 </body>
 </html>
