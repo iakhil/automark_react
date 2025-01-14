@@ -8,7 +8,7 @@ import cloudinary.uploader
 from dotenv import load_dotenv
 from openai import OpenAI
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 CORS(app)
 load_dotenv()
 

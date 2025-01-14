@@ -100,13 +100,22 @@
 
         <!-- List of uploaded files -->
         <h2>Already Uploaded Files</h2>
+
         <ul class="file-list">
             {% for file_id, file_url in files %}
             <li>
+                {% if "http" in file_url %}
+                <!-- External URL -->
                 <a href="{{ file_url }}" target="_blank">{{ file_id }}</a>
+                {% else %}
+                <!-- Internal Static File -->
+                <a href="{{ url_for('static', filename=file_url) }}" target="_blank">{{ file_id }}</a>
+                {% endif %}
             </li>
             {% endfor %}
         </ul>
+        
+
     </div>
 </body>
 </html>
