@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from pdf2image import convert_from_bytes
 from io import BytesIO
 from openai import OpenAI
+import requests
+from PyPDF2 import PdfReader
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -136,6 +138,83 @@ def upload_student():
         return jsonify({'grade': grade, 'response_urls': student_response_urls}), 200
 
     return render_template('upload_student.html')
+
+@app.route('/grade', methods=['POST'])
+def grade():
+    try:
+        # Parse JSON data from the request
+        data = request.json
+        question_paper_url = data.get('question_paper_url')
+        marking_scheme_url = data.get('marking_scheme_url')
+        student_response_url = data.get('student_response_url')
+        prompt = data.get('prompt', (
+            "You are a teacher grading a student's work. "
+            "Here's the question paper, marking scheme, and the student's response. "
+            "Evaluate the student's response based on the provided materials, assign a score for each individual question."
+        ))
+
+        # Validate input URLs
+        if not question_paper_url or not marking_scheme_url or not student_response_url:
+            return jsonify({"status": "error", "message": "All file URLs are required!"}), 400
+
+        # Download and process the question paper (PDF)
+        question_paper_response = requests.get(question_paper_url)
+        if question_paper_response.status_code != 200:
+            return jsonify({"status": "error", "message": "Failed to fetch question paper!"}), 400
+
+        # Extract text from the question paper PDF
+        question_paper_text = extract_pdf_text(BytesIO(question_paper_response.content))
+
+        # Download and process the marking scheme (image)
+        marking_scheme_response = requests.get(marking_scheme_url)
+        marking_scheme_content_type = marking_scheme_response.headers.get('Content-Type')
+        if not marking_scheme_content_type.startswith('image/'):
+            return jsonify({"status": "error", "message": f"Invalid image type for marking scheme: {marking_scheme_content_type}"}), 400
+
+        marking_scheme_base64 = convert_image_to_base64(marking_scheme_url)
+
+        # Download and process the student response (image)
+        student_response_response = requests.get(student_response_url)
+        student_response_content_type = student_response_response.headers.get('Content-Type')
+        if not student_response_content_type.startswith('image/'):
+            return jsonify({"status": "error", "message": f"Invalid image type for student response: {student_response_content_type}"}), 400
+
+        student_response_base64 = convert_image_to_base64(student_response_url)
+
+        # Use OpenAI Chat Completion API to grade the response
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "text", "text": f"Question Paper:\n{question_paper_text}"},
+                        {"type": "image_url", "image_url": {"url": marking_scheme_base64}},
+                        {"type": "image_url", "image_url": {"url": student_response_base64}},
+                    ],
+                }
+            ],
+            max_tokens=500,
+        )
+
+        # Extract and return the grading result
+        grading_result = response.choices[0].message.content
+        return jsonify({"status": "success", "result": grading_result})
+
+    except Exception as e:
+        # Handle errors gracefully
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# Helper function: Extract text from a PDF file
+def extract_pdf_text(pdf_file):
+    reader = PdfReader(pdf_file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text()
+    return text
+
 
 if __name__ == '__main__':
     app.run(debug=True)

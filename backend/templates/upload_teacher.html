@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Teacher Files</title>
+    <title>Upload and Grade Files</title>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -37,13 +37,16 @@
             margin-bottom: 5px;
             display: block;
         }
-        input[type="file"], button {
+        input[type="file"], textarea, button {
             width: 100%;
             padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ddd;
             border-radius: 5px;
             box-sizing: border-box;
+        }
+        textarea {
+            resize: none;
         }
         button {
             background-color: #4CAF50;
@@ -62,33 +65,22 @@
             color: #333;
             margin-bottom: 20px;
         }
-        .file-list {
-            list-style: none;
-            padding: 0;
-        }
-        .file-list li {
-            margin-bottom: 10px;
-        }
-        .file-list a {
-            color: #007BFF;
-            text-decoration: none;
-        }
-        .file-list a:hover {
-            text-decoration: underline;
+        .result {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Upload Question Paper, Rubric, and Answer Sheet</h1>
-
-        <!-- Display messages -->
-        {% if message %}
-        <div class="message">{{ message }}</div>
-        {% endif %}
+        <h1>Upload and Grade Files</h1>
 
         <!-- Upload Form -->
-        <form action="/upload_teacher" method="post" enctype="multipart/form-data">
+        <form action="http://127.0.0.1:5000/upload_teacher" method="post" enctype="multipart/form-data">
             <label for="file">Upload Question Paper:</label>
             <input type="file" id="file" name="file" required>
 
@@ -101,21 +93,38 @@
             <button type="submit">Upload</button>
         </form>
 
-        <!-- List of uploaded files -->
-        <h2>Already Uploaded Files</h2>
-        <ul class="file-list">
-            {% for file_id, file_url in files %}
-            <li>
-                {% if "http" in file_url %}
-                <!-- External URL -->
-                <a href="{{ file_url }}" target="_blank">{{ file_id }}</a>
-                {% else %}
-                <!-- Internal Static File -->
-                <a href="{{ url_for('static', filename=file_url) }}" target="_blank">{{ file_id }}</a>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
+        <!-- Grading Form -->
+        <form id="grading-form">
+            <label for="prompt">Grading Prompt:</label>
+            <textarea id="prompt" name="prompt" rows="4" cols="50">You are a teacher grading a student's work. Here's the question paper, marking scheme, and the student's response. Evaluate the student's response based on the provided materials, assign a score for each individual question.</textarea>
+
+            <button type="submit">Grade</button>
+        </form>
+
+        <div id="result" class="result"></div>
     </div>
+
+    <script>
+        document.getElementById('grading-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const prompt = document.getElementById('prompt').value;
+
+            const response = await fetch('http://127.0.0.1:5000/grade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            });
+
+            const resultDiv = document.getElementById('result');
+            if (response.ok) {
+                const data = await response.json();
+                resultDiv.innerText = data.result;
+            } else {
+                const error = await response.json();
+                resultDiv.innerText = `Error: ${error.message}`;
+            }
+        });
+    </script>
 </body>
 </html>
