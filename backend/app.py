@@ -81,6 +81,12 @@ def upload_teacher():
         rubric_file = request.files['rubric_file']
         answer_sheet = request.files['answer_sheet']
 
+        print(f"Rubric file: {rubric_file}")
+
+        print(f"Question paper: {question_paper}")
+
+        print(f"Answer file: {answer_sheet}")
+
         if question_paper.filename == '' or rubric_file.filename == '' or answer_sheet.filename == '':
             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
@@ -92,8 +98,12 @@ def upload_teacher():
         answer_sheet_urls = convert_pdf_to_image_and_upload(answer_sheet, folder="teachers/answer_sheets")
 
         # Extract text content from the rubric and student response
-        rubric_text = extract_pdf_text(BytesIO(rubric_file.read()))
-        student_response_text = extract_pdf_text(BytesIO(answer_sheet.read()))
+        rubric_file.seek(0)
+        rubric_text = extract_pdf_text(rubric_file)
+
+        student_file.seek(0)
+        student_response_text = extract_pdf_text(student_file)
+
 
         # Grade the student's response
         grade = grade_response(student_response_text, rubric_text)
