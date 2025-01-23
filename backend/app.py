@@ -30,7 +30,7 @@ client = OpenAI(
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
     print(f"Student response: {student_response}")
-    prompt = f"Grade the following student response based on the rubric:\n\nRubric:\n{rubrix}\n\nStudent Response:\n{student_response}\n"
+    prompt = f"Grade the following student response based on the rubric. Provide the total marks obtained for each question. Keep your remarks succinct.:\n\nRubric:\n{rubrix}\n\nStudent Response:\n{student_response}\n"
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
@@ -98,21 +98,43 @@ def upload_teacher():
         rubric_image_url = rubric_urls[0]  # Use the first image URL
         answer_image_url = answer_sheet_urls[0]  # Use the first image URL
 
-        # OpenAI API request
+        content = [
+            {"type": "text", "text": "Grade this student's answer based on the rubric provided. DO NOT USE ASTERISKS IN THE OUTPUT."}
+        ]
+
+        for url in rubric_urls:
+            content.append({"type": "image_url", "image_url": {"url": url}})
+
+        # Add answer sheet image URLs to the prompt
+        for url in answer_sheet_urls:
+            content.append({"type": "image_url", "image_url": {"url": url}})
+
+        
         prompt = {
             "role": "user",
-            "content": [
-                {"type": "text", "text": "Grade this student's answer based on the rubric provided. DO NOT USE ASTERISKS IN THE OUTPUT."},
-                {"type": "image_url", "image_url": {"url": rubric_image_url}},
-                {"type": "image_url", "image_url": {"url": answer_image_url}},
-            ]
+            "content": content
         }
+
+
+        # # OpenAI API request
+        # prompt = {
+        #     "role": "user",
+        #     "content": [
+        #         {"type": "text", "text": "Grade this student's answer based on the rubric provided. DO NOT USE ASTERISKS IN THE OUTPUT."},
+        #         {"type": "image_url", "image_url": {"url": rubric_urls}},
+        #         {"type": "image_url", "image_url": {"url": answer_sheet_urls}},
+        #     ]
+        # }
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[prompt],
             max_tokens=1000
         )
+
+        print(f"RUBRIC IMAGE URL: {rubric_image_url}")
+
+        print(f"ANSWER IMAGE URL: {answer_image_url}")
 
 
 
