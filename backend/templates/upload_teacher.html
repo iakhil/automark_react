@@ -93,11 +93,14 @@
             <button type="submit">Upload</button>
         </form>
 
-        <div id="result" class="result"></div>
+        <div id="result" class="result">
+            {% if grade %}
+                <strong>Grading Results:</strong>
+                <p>{{ grade }}</p>
+            {% else %}
+                <p>No results to display yet.</p>
+            {% endif %}
+        </div>
     </div>
-
-    <script>
-        // JavaScript functionality removed since Grading Prompt form was removed
-    </script>
 </body>
 </html>

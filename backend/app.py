@@ -29,6 +29,7 @@ client = OpenAI(
 
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
+    print(f"Student response: {student_response}")
     prompt = f"Grade the following student response based on the rubric:\n\nRubric:\n{rubrix}\n\nStudent Response:\n{student_response}\n"
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -72,6 +73,7 @@ def extract_pdf_text(pdf_file):
 @app.route('/upload_teacher', methods=['GET', 'POST'])
 def upload_teacher():
     if request.method == 'POST':
+        # Validate file inputs
         if 'file' not in request.files or 'rubric_file' not in request.files or 'answer_sheet' not in request.files:
             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
@@ -81,46 +83,51 @@ def upload_teacher():
         rubric_file = request.files['rubric_file']
         answer_sheet = request.files['answer_sheet']
 
-        print(f"Rubric file: {rubric_file}")
-
-        print(f"Question paper: {question_paper}")
-
-        print(f"Answer file: {answer_sheet}")
-
+        # Ensure files are provided
         if question_paper.filename == '' or rubric_file.filename == '' or answer_sheet.filename == '':
             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
             return render_template('upload_teacher.html', message='No file selected!', files=file_list)
 
-        # Convert and upload PDFs
+        # Convert and upload PDFs as images
         question_paper_urls = convert_pdf_to_image_and_upload(question_paper, folder="teachers/question_papers")
         rubric_urls = convert_pdf_to_image_and_upload(rubric_file, folder="teachers/rubrics")
         answer_sheet_urls = convert_pdf_to_image_and_upload(answer_sheet, folder="teachers/answer_sheets")
 
-        # Extract text content from the rubric and student response
-        rubric_file.seek(0)
-        rubric_text = extract_pdf_text(rubric_file)
+        # Call OpenAI API with the first page of the rubric and answer sheet
+        rubric_image_url = rubric_urls[0]  # Use the first image URL
+        answer_image_url = answer_sheet_urls[0]  # Use the first image URL
 
-        student_file.seek(0)
-        student_response_text = extract_pdf_text(student_file)
+        # OpenAI API request
+        prompt = {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Grade this student's answer based on the rubric provided. DO NOT USE ASTERISKS IN THE OUTPUT."},
+                {"type": "image_url", "image_url": {"url": rubric_image_url}},
+                {"type": "image_url", "image_url": {"url": answer_image_url}},
+            ]
+        }
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[prompt],
+            max_tokens=1000
+        )
 
 
-        # Grade the student's response
-        grade = grade_response(student_response_text, rubric_text)
 
-        # Fetch the updated list of uploaded files
+        grade = response.choices[0].message.content.strip()
+
+        print(f"Grade: {grade}")
+
+        # Fetch updated list of uploaded files
         uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
         file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
-
-        # Log details for debugging
-        print(f"Question Paper URLs: {question_paper_urls}")
-        print(f"Rubric URLs: {rubric_urls}")
-        print(f"Answer Sheet URLs: {answer_sheet_urls}")
-        print(f"Grading Result: {grade}")
 
         return render_template(
             'upload_teacher.html',
             message=f'Uploaded and graded successfully. Grade: {grade}',
+            grade=grade,
             files=file_list
         )
 
@@ -129,6 +136,73 @@ def upload_teacher():
     file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
 
     return render_template('upload_teacher.html', files=file_list)
+
+
+# def upload_teacher():
+#     if request.method == 'POST':
+#         if 'file' not in request.files or 'rubric_file' not in request.files or 'answer_sheet' not in request.files:
+#             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+#             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+#             return render_template('upload_teacher.html', message='All three files are required!', files=file_list)
+
+#         question_paper = request.files['file']
+#         rubric_file = request.files['rubric_file']
+#         answer_sheet = request.files['answer_sheet']
+
+#         print(f"Rubric file: {rubric_file}")
+
+#         print(f"Question paper: {question_paper}")
+
+#         print(f"Answer file: {answer_sheet}")
+
+#         if question_paper.filename == '' or rubric_file.filename == '' or answer_sheet.filename == '':
+#             uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+#             file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+#             return render_template('upload_teacher.html', message='No file selected!', files=file_list)
+
+#         # Convert and upload PDFs
+#         question_paper_urls = convert_pdf_to_image_and_upload(question_paper, folder="teachers/question_papers")
+#         rubric_urls = convert_pdf_to_image_and_upload(rubric_file, folder="teachers/rubrics")
+#         answer_sheet_urls = convert_pdf_to_image_and_upload(answer_sheet, folder="teachers/answer_sheets")
+
+#         # Extract text content from the rubric and student response
+#         rubric_file.seek(0)
+#         rubric_text = extract_pdf_text(rubric_file)
+
+#         print(f"RUBRIC TEXT: {rubric_text}")
+
+
+#         answer_sheet.seek(0)
+#         student_response_text = extract_pdf_text(answer_sheet)
+
+#         print(f"STUDENT RESPONSE TEXT: {student_response_text}")
+
+
+#         # Grade the student's response
+#         grade = grade_response(student_response_text, rubric_text)
+
+#         # Fetch the updated list of uploaded files
+#         uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+#         file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+
+#         # Log details for debugging
+#         print(f"Question Paper URLs: {question_paper_urls}")
+#         print(f"Rubric URLs: {rubric_urls}")
+#         print(f"Answer Sheet URLs: {answer_sheet_urls}")
+#         print(f"Grading Result: {grade}")
+
+#         return render_template(
+#             'upload_teacher.html',
+#             message=f'Uploaded and graded successfully. Grade: {grade}',
+#             grade=grade,
+#             files=file_list
+#         )
+
+#     # Fetch already uploaded files for the teacher
+#     uploaded_files = cloudinary.api.resources(type="upload", prefix="teachers")
+#     file_list = [(resource['public_id'], resource['url']) for resource in uploaded_files.get('resources', [])]
+
+#     return render_template('upload_teacher.html', files=file_list)
 
 if __name__ == '__main__':
     app.run(debug=True)
