@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teacher Portal</h1>
+    <a href="/" style="margin-bottom: 20px; display: inline-block;">Back to Home</a>
+    
+    {% if message %}
+    <div class="message">{{ message }}</div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="question_paper">Upload Question Paper (PDF):</label><br>
+            <input type="file" id="question_paper" name="question_paper" accept=".pdf">
+        </div>
+
+        <div class="form-group">
+            <label for="rubric_file">Upload Rubric (PDF):</label><br>
+            <input type="file" id="rubric_file" name="rubric_file" accept=".pdf">
+        </div>
+
+        <button type="submit" class="button">Upload Files</button>
+    </form>
+
+    {% if question_paper_urls %}
+    <h2>Uploaded Question Paper:</h2>
+    {% for url in question_paper_urls %}
+    <img src="{{ url }}" style="max-width: 100%; margin: 10px 0;">
+    {% endfor %}
+    {% endif %}
+
+    {% if rubric_urls %}
+    <h2>Uploaded Rubric:</h2>
+    {% for url in rubric_urls %}
+    <img src="{{ url }}" style="max-width: 100%; margin: 10px 0;">
+    {% endfor %}
+    {% endif %}
+</body>
+</html> 

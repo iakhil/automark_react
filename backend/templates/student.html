@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .grade {
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Student Portal</h1>
+    <a href="/" style="margin-bottom: 20px; display: inline-block;">Back to Home</a>
+
+    {% if message %}
+    <div class="message">{{ message }}</div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="answer_sheet">Upload Your Answer Sheet (PDF):</label><br>
+            <input type="file" id="answer_sheet" name="answer_sheet" accept=".pdf">
+        </div>
+
+        <button type="submit" class="button">Submit Answer</button>
+    </form>
+
+    {% if grade %}
+    <h2>Grading Results:</h2>
+    <div class="grade">
+        {{ grade }}
+    </div>
+    {% endif %}
+</body>
+</html> 
