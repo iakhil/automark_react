@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .grade {
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .submission-list {
+            margin-top: 20px;
+        }
+        .submission-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Student Portal</h1>
+    <div style="text-align: right;">
+        <a href="{{ url_for('logout') }}" class="button">Logout</a>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="exam_code">Exam Code:</label><br>
+            <input type="text" id="exam_code" name="exam_code" required>
+        </div>
+
+        <div class="form-group">
+            <label for="answer_sheet">Upload Your Answer Sheet (PDF):</label><br>
+            <input type="file" id="answer_sheet" name="answer_sheet" accept=".pdf" required>
+        </div>
+
+        <button type="submit" class="button">Submit Answer</button>
+    </form>
+
+    <div class="submission-list">
+        <h2>Your Submissions</h2>
+        {% for submission in submissions %}
+            <div class="submission-item">
+                <h3>Exam: {{ submission.exam.title }}</h3>
+                <p>Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                <p>Grade:</p>
+                <div class="grade">{{ submission.grade }}</div>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html> 
