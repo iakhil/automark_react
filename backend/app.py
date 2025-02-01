@@ -6,7 +6,7 @@ import cloudinary
 import cloudinary.api
 import cloudinary.uploader
 from dotenv import load_dotenv
-from pdf2image import convert_from_bytes
+from pdf2image import convert_from_bytes, convert_from_path
 from io import BytesIO
 from openai import OpenAI
 import requests
@@ -18,6 +18,10 @@ from functools import wraps
 import time
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import tempfile
+from PIL import Image
+import fitz  # PyMuPDF
+import io
 
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
@@ -74,22 +78,27 @@ def create_session_with_retry():
 # Update the convert_pdf_to_image_and_upload function
 def convert_pdf_to_image_and_upload(pdf_file, folder):
     try:
-        # Convert PDF pages to images
+        # Read PDF content
         pdf_content = pdf_file.read()
-        images = convert_from_bytes(
-            pdf_content, 
-            dpi=300,
-            timeout=60  # Increase timeout for PDF conversion
-        )
+        pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
         uploaded_urls = []
 
-        for i, image in enumerate(images):
-            # Save image to BytesIO
-            img_byte_array = BytesIO()
-            image.save(img_byte_array, format='JPEG', quality=95)
+        # Convert each page to image
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            
+            # Get page as image with higher resolution
+            pix = page.get_pixmap(matrix=fitz.Matrix(300/72, 300/72))
+            
+            # Convert to PIL Image
+            img_data = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            
+            # Save image to bytes
+            img_byte_array = io.BytesIO()
+            img_data.save(img_byte_array, format='JPEG', quality=95)
             img_byte_array.seek(0)
 
-            # Try uploading with retries
+            # Upload to Cloudinary with retries
             max_attempts = 3
             for attempt in range(max_attempts):
                 try:
@@ -98,19 +107,21 @@ def convert_pdf_to_image_and_upload(pdf_file, folder):
                         folder=folder,
                         quality='auto:best',
                         fetch_format='auto',
-                        timeout=30,  # Add timeout for upload
-                        public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{i + 1}"
+                        timeout=30,
+                        public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{page_num + 1}"
                     )
                     uploaded_urls.append(upload_result['url'])
                     break
                 except Exception as upload_error:
-                    if attempt == max_attempts - 1:  # Last attempt
+                    if attempt == max_attempts - 1:
                         raise upload_error
-                    time.sleep(2 ** attempt)  # Exponential backoff
+                    time.sleep(2 ** attempt)
 
+        pdf_document.close()
         return uploaded_urls
+
     except Exception as e:
-        print(f"PDF conversion error: {str(e)}")
+        print(f"PDF processing error: {str(e)}")
         raise Exception(f"Failed to process the PDF file: {str(e)}")
 
 # Helper function: Extract text from a PDF file
@@ -129,16 +140,20 @@ def extract_rubric_text(pdf_url):
         
         # Download PDF with retry mechanism
         response = session.get(pdf_url, timeout=30)
-        response.raise_for_status()  # Raise exception for bad status codes
+        response.raise_for_status()
         
-        pdf_content = BytesIO(response.content)
+        # Read PDF content
+        pdf_content = response.content
+        pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
         
-        # Extract text from PDF
-        reader = PdfReader(pdf_content)
         text = ""
-        for page in reader.pages:
-            text += page.extract_text()
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            text += page.get_text()
+        
+        pdf_document.close()
         return text
+        
     except Exception as e:
         print(f"Rubric extraction error: {str(e)}")
         raise Exception(f"Failed to process rubric: {str(e)}")
