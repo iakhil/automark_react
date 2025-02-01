@@ -228,7 +228,7 @@ def student_page():
             content.append({"type": "image_url", "image_url": {"url": url}})
 
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": content}],
             max_tokens=1000
         )

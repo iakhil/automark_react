@@ -15,6 +15,9 @@ from models import db, User, Exam, Submission
 import random
 import string
 from functools import wraps
+import time
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
@@ -55,24 +58,60 @@ def grade_response(student_response, rubrix):
     )
     return response.choices[0].message.content.strip()
 
-# Helper function: Convert PDF to image and upload to Cloudinary
+# Add this function to create a session with retries
+def create_session_with_retry():
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,  # number of retries
+        backoff_factor=1,  # wait 1, 2, 4 seconds between retries
+        status_forcelist=[429, 500, 502, 503, 504]  # HTTP status codes to retry on
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+# Update the convert_pdf_to_image_and_upload function
 def convert_pdf_to_image_and_upload(pdf_file, folder):
-    images = convert_from_bytes(pdf_file.read(), dpi=300)
-    uploaded_urls = []
-
-    for i, image in enumerate(images):
-        img_byte_array = BytesIO()
-        image.save(img_byte_array, format='JPEG')
-        img_byte_array.seek(0)
-
-        upload_result = cloudinary.uploader.upload(
-            img_byte_array,
-            folder=folder,
-            public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{i + 1}"
+    try:
+        # Convert PDF pages to images
+        pdf_content = pdf_file.read()
+        images = convert_from_bytes(
+            pdf_content, 
+            dpi=300,
+            timeout=60  # Increase timeout for PDF conversion
         )
-        uploaded_urls.append(upload_result['url'])
+        uploaded_urls = []
 
-    return uploaded_urls
+        for i, image in enumerate(images):
+            # Save image to BytesIO
+            img_byte_array = BytesIO()
+            image.save(img_byte_array, format='JPEG', quality=95)
+            img_byte_array.seek(0)
+
+            # Try uploading with retries
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                try:
+                    upload_result = cloudinary.uploader.upload(
+                        img_byte_array,
+                        folder=folder,
+                        quality='auto:best',
+                        fetch_format='auto',
+                        timeout=30,  # Add timeout for upload
+                        public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{i + 1}"
+                    )
+                    uploaded_urls.append(upload_result['url'])
+                    break
+                except Exception as upload_error:
+                    if attempt == max_attempts - 1:  # Last attempt
+                        raise upload_error
+                    time.sleep(2 ** attempt)  # Exponential backoff
+
+        return uploaded_urls
+    except Exception as e:
+        print(f"PDF conversion error: {str(e)}")
+        raise Exception(f"Failed to process the PDF file: {str(e)}")
 
 # Helper function: Extract text from a PDF file
 def extract_pdf_text(pdf_file):
@@ -81,6 +120,28 @@ def extract_pdf_text(pdf_file):
     for page in reader.pages:
         text += page.extract_text()
     return text
+
+# Update the extract_rubric_text function
+def extract_rubric_text(pdf_url):
+    try:
+        # Create session with retry mechanism
+        session = create_session_with_retry()
+        
+        # Download PDF with retry mechanism
+        response = session.get(pdf_url, timeout=30)
+        response.raise_for_status()  # Raise exception for bad status codes
+        
+        pdf_content = BytesIO(response.content)
+        
+        # Extract text from PDF
+        reader = PdfReader(pdf_content)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text()
+        return text
+    except Exception as e:
+        print(f"Rubric extraction error: {str(e)}")
+        raise Exception(f"Failed to process rubric: {str(e)}")
 
 # Authentication decorator
 def login_required(role=None):
@@ -178,29 +239,38 @@ def teacher_page():
         flash(f'Exam created successfully! Exam Code: {exam_code}')
         return redirect(url_for('teacher_page'))
 
-    # Get all exams created by this teacher
+    # Get all submissions for exams created by this teacher
+    submissions = (Submission.query
+                  .join(Exam)
+                  .join(User, Submission.student_id == User.id)
+                  .filter(Exam.teacher_id == session['user_id'])
+                  .order_by(Submission.submitted_at.desc())
+                  .all())
+
+    # Get teacher's exams
     exams = Exam.query.filter_by(teacher_id=session['user_id']).all()
-    return render_template('teacher.html', exams=exams)
+    
+    return render_template('teacher.html', exams=exams, submissions=submissions)
 
 @app.route('/student', methods=['GET', 'POST'])
 @login_required(role='student')
 def student_page():
     if request.method == 'POST':
         if 'answer_sheet' not in request.files:
-            flash('Answer sheet is required!')
+            flash('Answer sheet is required!', 'error')
             return redirect(url_for('student_page'))
 
         exam_code = request.form.get('exam_code')
         answer_sheet = request.files['answer_sheet']
 
         if answer_sheet.filename == '':
-            flash('No file selected!')
+            flash('No file selected!', 'error')
             return redirect(url_for('student_page'))
 
         # Verify exam code
         exam = Exam.query.filter_by(exam_code=exam_code).first()
         if not exam:
-            flash('Invalid exam code!')
+            flash('Invalid exam code!', 'error')
             return redirect(url_for('student_page'))
 
         # Check if student has already submitted
@@ -210,42 +280,80 @@ def student_page():
         ).first()
         
         if existing_submission:
-            flash('You have already submitted for this exam!')
+            flash('You have already submitted for this exam!', 'error')
             return redirect(url_for('student_page'))
 
-        # Upload answer sheet
-        answer_sheet_urls = convert_pdf_to_image_and_upload(
-            answer_sheet, 
-            f"students/{exam_code}/{session['user_id']}/answers"
-        )
+        try:
+            # Convert and upload answer sheet
+            answer_sheet_urls = convert_pdf_to_image_and_upload(
+                answer_sheet, 
+                f"students/{exam_code}/{session['user_id']}/answers"
+            )
 
-        # Grade the answer using GPT-4 Vision
-        content = [
-            {"type": "text", "text": "Grade this student's answer based on the rubric provided. Provide specific feedback and marks for each question."}
-        ]
-        content.append({"type": "image_url", "image_url": {"url": exam.rubric_url}})
-        for url in answer_sheet_urls:
-            content.append({"type": "image_url", "image_url": {"url": url}})
+            # Extract rubric text
+            rubric_text = extract_rubric_text(exam.rubric_url)
 
-        response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
-            messages=[{"role": "user", "content": content}],
-            max_tokens=1000
-        )
+            # Prepare content for GPT-4 Vision
+            content = [
+                {
+                    "type": "text",
+                    "text": f"""Grade this handwritten answer sheet based on the following rubric:
 
-        grade = response.choices[0].message.content.strip()
+                    RUBRIC:
+                    {rubric_text}
 
-        # Save submission
-        submission = Submission(
-            student_id=session['user_id'],
-            exam_id=exam.id,
-            answer_sheet_url=answer_sheet_urls[0],
-            grade=grade
-        )
-        db.session.add(submission)
-        db.session.commit()
+                    Format your response exactly as follows:
 
-        return render_template('student.html', grade=grade)
+                    ### SECTION A: [SECTION NAME] ([TOTAL MARKS])
+                    
+                    **Q1 (i)**: [1-2 sentence specific feedback] - [marks]
+                    **Q1 (ii)**: [1-2 sentence specific feedback] - [marks]
+                    
+                    Keep feedback concise and specific to each subquestion. 
+                    Follow the rubric strictly for marking.
+                    For each subquestion, provide:
+                    1. What was done correctly/incorrectly
+                    2. Marks awarded based on the rubric criteria
+                    
+                    Note: The answer sheet is handwritten. Please analyze the handwritten text carefully."""
+                }
+            ]
+
+            # Add all pages of the answer sheet as high-quality images
+            for url in answer_sheet_urls:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": url,
+                        "detail": "high"  # Request high detail analysis for handwriting
+                    }
+                })
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": content}],
+                max_tokens=1000
+            )
+
+            grade = response.choices[0].message.content.strip()
+
+            # Save submission with all page URLs
+            submission = Submission(
+                student_id=session['user_id'],
+                exam_id=exam.id,
+                answer_sheet_url=answer_sheet_urls[0],  # Store first page URL
+                grade=grade
+            )
+            db.session.add(submission)
+            db.session.commit()
+
+            flash('Answer sheet submitted successfully!', 'success')
+            return redirect(url_for('student_page'))
+
+        except Exception as e:
+            flash(f'Error processing PDF file: {str(e)}', 'error')
+            print(f"Error details: {str(e)}")  # For debugging
+            return redirect(url_for('student_page'))
 
     # Get student's submissions
     submissions = Submission.query.filter_by(student_id=session['user_id']).all()

@@ -8,6 +8,8 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'teacher' or 'student'
+    submissions = db.relationship('Submission', backref='student', lazy=True)
+    exams = db.relationship('Exam', backref='teacher', lazy=True)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -23,6 +25,7 @@ class Exam(db.Model):
     rubric_url = db.Column(db.String(500), nullable=False)
     exam_code = db.Column(db.String(10), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+    submissions = db.relationship('Submission', backref='exam', lazy=True)
 
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
