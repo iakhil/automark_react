@@ -26,7 +26,7 @@ import io
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///exam_portal.db'
-CORS(app)
+CORS(app, supports_credentials=True, origins=['https://your-github-pages-url.com'])
 load_dotenv()
 
 db.init_app(app)
@@ -373,6 +373,29 @@ def student_page():
     # Get student's submissions
     submissions = Submission.query.filter_by(student_id=session['user_id']).all()
     return render_template('student.html', submissions=submissions)
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    user = User.query.filter_by(username=username).first()
+    
+    if user and user.check_password(password):
+        session['user_id'] = user.id
+        session['role'] = user.role
+        return jsonify({'success': True, 'role': user.role})
+    
+    return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+
+@app.route('/api/submit-answer', methods=['POST'])
+@login_required(role='student')
+def submit_answer():
+    # ... submission logic ...
+    return jsonify({
+        'success': True,
+        'message': 'Answer sheet submitted successfully!'
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

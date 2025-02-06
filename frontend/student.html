@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Portal</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- ... existing HTML ... -->
+    <script src="js/api.js"></script>
+    <script>
+        async function submitAnswer(event) {
+            event.preventDefault();
+            const examCode = document.getElementById('exam_code').value;
+            const answerSheet = document.getElementById('answer_sheet').files[0];
+            
+            try {
+                const response = await API.submitAnswer(examCode, answerSheet);
+                if (response.success) {
+                    showMessage(response.message, 'success');
+                    loadSubmissions();
+                }
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function loadSubmissions() {
+            try {
+                const submissions = await API.getSubmissions();
+                // Update submissions list in the UI
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        // Load submissions when page loads
+        loadSubmissions();
+    </script>
+</body>
+</html> 
