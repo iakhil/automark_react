@@ -287,6 +287,36 @@
         .chevron.rotated {
             transform: rotate(180deg);
         }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            z-index: 1;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        .dropdown-content a {
+            color: #2c3e50;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .dropdown-content a:hover {
+            background-color: #f8fafc;
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -350,9 +380,22 @@
                         <p>Exam Code: <span class="exam-code">{{ exam.exam_code }}</span></p>
                         <p>Created: {{ exam.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
                         <div class="exam-links">
-                            <a href="{{ exam.question_paper_url }}" target="_blank">View Question Paper</a>
-                            <span>|</span>
-                            <a href="{{ exam.rubric_url }}" target="_blank">View Rubric</a>
+                            <div class="dropdown">
+                                <button class="button dropdown-toggle">View Question Paper</button>
+                                <div class="dropdown-content">
+                                    {% for url in exam.question_paper_urls %}
+                                        <a href="{{ url }}" target="_blank">Page {{ loop.index }}</a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="dropdown">
+                                <button class="button dropdown-toggle">View Rubric</button>
+                                <div class="dropdown-content">
+                                    {% for url in exam.rubric_urls %}
+                                        <a href="{{ url }}" target="_blank">Page {{ loop.index }}</a>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 {% endfor %}

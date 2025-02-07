@@ -26,7 +26,11 @@ import io
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///exam_portal.db'
-CORS(app, supports_credentials=True, origins=['https://your-github-pages-url.com'])
+CORS(app, 
+     supports_credentials=True, 
+     origins=['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:3000'],
+     allow_headers=['Content-Type'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 load_dotenv()
 
 db.init_app(app)
@@ -164,7 +168,7 @@ def login_required(role=None):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
-                return redirect(url_for('login'))
+                return redirect(url_for('login_page'))
             if role and session.get('role') != role:
                 flash('Unauthorized access')
                 return redirect(url_for('index'))
@@ -172,44 +176,34 @@ def login_required(role=None):
         return decorated_function
     return decorator
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
             session['user_id'] = user.id
             session['role'] = user.role
-            return redirect(url_for(f'{user.role}_page'))
+            
+            if user.role == 'teacher':
+                return redirect(url_for('teacher_page'))
+            return redirect(url_for('student_page'))
         
         flash('Invalid username or password')
+        return redirect(url_for('index'))
+    
+    # GET request
+    if 'user_id' in session:
+        if session['role'] == 'teacher':
+            return redirect(url_for('teacher_page'))
+        return redirect(url_for('student_page'))
     return render_template('login.html')
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        role = request.form.get('role')
-        
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists')
-            return redirect(url_for('register'))
-        
-        user = User(username=username, role=role)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        
-        flash('Registration successful')
-        return redirect(url_for('login'))
-    
+@app.route('/register', methods=['GET'])
+def register_page():
     return render_template('register.html')
 
 @app.route('/logout')
@@ -236,23 +230,34 @@ def teacher_page():
         # Generate unique exam code
         exam_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-        # Upload files to Cloudinary
-        question_paper_urls = convert_pdf_to_image_and_upload(question_paper, f"teachers/{exam_code}/question_papers")
-        rubric_urls = convert_pdf_to_image_and_upload(rubric_file, f"teachers/{exam_code}/rubrics")
+        try:
+            # Upload files to Cloudinary and get all page URLs
+            question_paper_urls = convert_pdf_to_image_and_upload(
+                question_paper, 
+                f"teachers/{exam_code}/question_papers"
+            )
+            rubric_urls = convert_pdf_to_image_and_upload(
+                rubric_file, 
+                f"teachers/{exam_code}/rubrics"
+            )
 
-        # Create new exam
-        exam = Exam(
-            title=title,
-            teacher_id=session['user_id'],
-            question_paper_url=question_paper_urls[0],  # Store first page URL
-            rubric_url=rubric_urls[0],  # Store first page URL
-            exam_code=exam_code
-        )
-        db.session.add(exam)
-        db.session.commit()
+            # Create new exam with all page URLs
+            exam = Exam(
+                title=title,
+                teacher_id=session['user_id'],
+                question_paper_urls=question_paper_urls,  # Store all URLs
+                rubric_urls=rubric_urls,  # Store all URLs
+                exam_code=exam_code
+            )
+            db.session.add(exam)
+            db.session.commit()
 
-        flash(f'Exam created successfully! Exam Code: {exam_code}')
-        return redirect(url_for('teacher_page'))
+            flash(f'Exam created successfully! Exam Code: {exam_code}')
+            return redirect(url_for('teacher_page'))
+            
+        except Exception as e:
+            flash(f'Error creating exam: {str(e)}')
+            return redirect(url_for('teacher_page'))
 
     # Get all submissions for exams created by this teacher
     submissions = (Submission.query
@@ -374,27 +379,61 @@ def student_page():
     submissions = Submission.query.filter_by(student_id=session['user_id']).all()
     return render_template('student.html', submissions=submissions)
 
-@app.route('/api/login', methods=['POST'])
-def login():
+@app.route('/api/register', methods=['POST'])
+def api_register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    user = User.query.filter_by(username=username).first()
+    role = data.get('role')
     
-    if user and user.check_password(password):
-        session['user_id'] = user.id
-        session['role'] = user.role
-        return jsonify({'success': True, 'role': user.role})
+    if User.query.filter_by(username=username).first():
+        return jsonify({
+            'success': False,
+            'message': 'Username already exists'
+        }), 400
     
-    return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
+    user = User(username=username, role=role)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Registration successful'
+    })
 
 @app.route('/api/submit-answer', methods=['POST'])
 @login_required(role='student')
-def submit_answer():
-    # ... submission logic ...
+def api_submit_answer():
+    if 'answer_sheet' not in request.files:
+        return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+
+    exam_code = request.form.get('exam_code')
+    answer_sheet = request.files['answer_sheet']
+
+    # ... rest of submission logic ...
     return jsonify({
         'success': True,
         'message': 'Answer sheet submitted successfully!'
+    })
+
+@app.route('/api/submissions', methods=['GET'])
+@login_required(role='student')
+def api_get_submissions():
+    submissions = Submission.query.filter_by(student_id=session['user_id']).all()
+    return jsonify({
+        'success': True,
+        'submissions': [
+            {
+                'id': sub.id,
+                'exam_title': sub.exam.title,
+                'exam_code': sub.exam.exam_code,
+                'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'grade': sub.grade,
+                'answer_sheet_url': sub.answer_sheet_url
+            }
+            for sub in submissions
+        ]
     })
 
 if __name__ == '__main__':

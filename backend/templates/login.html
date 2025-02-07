@@ -88,7 +88,7 @@
 </head>
 <body>
     <div class="form-container">
-        <h1>Login</h1>
+        <h1>Welcome to Exam Portal</h1>
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for message in messages %}
@@ -111,7 +111,7 @@
             <button type="submit" class="button">Login</button>
         </form>
         
-        <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+        <p>Don't have an account? <a href="{{ url_for('register_page') }}">Register here</a></p>
     </div>
 </body>
 </html> 

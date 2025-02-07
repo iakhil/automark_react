@@ -21,8 +21,8 @@ class Exam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    question_paper_url = db.Column(db.String(500), nullable=False)
-    rubric_url = db.Column(db.String(500), nullable=False)
+    question_paper_urls = db.Column(db.JSON, nullable=False)  # Store array of URLs
+    rubric_urls = db.Column(db.JSON, nullable=False)  # Store array of URLs
     exam_code = db.Column(db.String(10), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     submissions = db.relationship('Submission', backref='exam', lazy=True)

@@ -1,8 +1,8 @@
-const API_BASE_URL = 'https://your-backend-url.com/api';  // Change this to your deployed backend URL
+const API_BASE_URL = 'http://localhost:5000';  // Change this to your deployed backend URL when deploying
 
 class API {
     static async login(username, password) {
-        const response = await fetch(`${API_BASE_URL}/login`, {
+        const response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -10,7 +10,12 @@ class API {
             body: JSON.stringify({ username, password }),
             credentials: 'include'
         });
-        return await response.json();
+        
+        if (!response.ok) {
+            throw new Error('Login failed');
+        }
+        
+        return response.json();
     }
 
     static async submitAnswer(examCode, answerSheet) {
@@ -18,19 +23,19 @@ class API {
         formData.append('exam_code', examCode);
         formData.append('answer_sheet', answerSheet);
 
-        const response = await fetch(`${API_BASE_URL}/submit-answer`, {
+        const response = await fetch(`${API_BASE_URL}/api/submit-answer`, {
             method: 'POST',
             body: formData,
             credentials: 'include'
         });
-        return await response.json();
+        return response.json();
     }
 
     static async getSubmissions() {
-        const response = await fetch(`${API_BASE_URL}/submissions`, {
+        const response = await fetch(`${API_BASE_URL}/api/submissions`, {
             credentials: 'include'
         });
-        return await response.json();
+        return response.json();
     }
 
     static async createExam(title, questionPaper, rubric) {
@@ -39,11 +44,11 @@ class API {
         formData.append('question_paper', questionPaper);
         formData.append('rubric_file', rubric);
 
-        const response = await fetch(`${API_BASE_URL}/create-exam`, {
+        const response = await fetch(`${API_BASE_URL}/api/create-exam`, {
             method: 'POST',
             body: formData,
             credentials: 'include'
         });
-        return await response.json();
+        return response.json();
     }
 } 
