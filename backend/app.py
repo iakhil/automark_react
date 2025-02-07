@@ -37,7 +37,15 @@ db.init_app(app)
 
 # Create all database tables
 with app.app_context():
-    db.create_all()
+    db.drop_all()  # Drop all existing tables
+    db.create_all()  # Create new tables with updated schema
+    
+    # Create a test user if needed
+    if not User.query.filter_by(username='test').first():
+        test_user = User(username='test', role='teacher')
+        test_user.set_password('test')
+        db.session.add(test_user)
+        db.session.commit()
 
 # Configure Cloudinary
 cloudinary.config(
