@@ -31,6 +31,6 @@ class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
-    answer_sheet_url = db.Column(db.String(500), nullable=False)
+    answer_sheet_urls = db.Column(db.JSON, nullable=False)  # Store array of URLs
     grade = db.Column(db.Text, nullable=True)
     submitted_at = db.Column(db.DateTime, server_default=db.func.now()) 

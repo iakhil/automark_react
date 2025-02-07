@@ -182,6 +182,36 @@
             font-weight: 500;
             margin-bottom: 8px;
         }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            z-index: 1;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        
+        .dropdown-content a {
+            color: #2c3e50;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .dropdown-content a:hover {
+            background-color: #f8fafc;
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -227,11 +257,18 @@
             {% for submission in submissions %}
                 <div class="submission-item">
                     <h3>{{ submission.exam.title }}</h3>
-                    <p class="exam-code">Exam Code: {{ submission.exam.exam_code }}</p>
-                    <p class="submission-date">
-                        Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                    </p>
-                    <div class="grade-label">Grade:</div>
+                    <p>Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    <div class="answer-sheet-links">
+                        <div class="dropdown">
+                            <button class="button dropdown-toggle">View Answer Sheet</button>
+                            <div class="dropdown-content">
+                                {% for url in submission.answer_sheet_urls %}
+                                    <a href="{{ url }}" target="_blank">Page {{ loop.index }}</a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <p>Grade:</p>
                     <div class="grade">{{ submission.grade }}</div>
                 </div>
             {% endfor %}

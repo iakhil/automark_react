@@ -210,8 +210,25 @@ def index():
         return redirect(url_for('student_page'))
     return render_template('login.html')
 
-@app.route('/register', methods=['GET'])
+@app.route('/register', methods=['GET', 'POST'])
 def register_page():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return redirect(url_for('register_page'))
+        
+        user = User(username=username, role=role)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Registration successful! Please login.')
+        return redirect(url_for('index'))
+        
     return render_template('register.html')
 
 @app.route('/logout')
@@ -285,7 +302,7 @@ def teacher_page():
 def student_page():
     if request.method == 'POST':
         if 'answer_sheet' not in request.files:
-            flash('Answer sheet is required!', 'error')
+            flash('No file uploaded!', 'error')
             return redirect(url_for('student_page'))
 
         exam_code = request.form.get('exam_code')
@@ -295,31 +312,22 @@ def student_page():
             flash('No file selected!', 'error')
             return redirect(url_for('student_page'))
 
-        # Verify exam code
         exam = Exam.query.filter_by(exam_code=exam_code).first()
         if not exam:
             flash('Invalid exam code!', 'error')
             return redirect(url_for('student_page'))
 
-        # Check if student has already submitted
-        existing_submission = Submission.query.filter_by(
-            student_id=session['user_id'],
-            exam_id=exam.id
-        ).first()
-        
-        if existing_submission:
-            flash('You have already submitted for this exam!', 'error')
-            return redirect(url_for('student_page'))
-
         try:
-            # Convert and upload answer sheet
+            # Convert and upload all pages of the answer sheet
             answer_sheet_urls = convert_pdf_to_image_and_upload(
-                answer_sheet, 
+                answer_sheet,
                 f"students/{exam_code}/{session['user_id']}/answers"
             )
 
-            # Extract rubric text
-            rubric_text = extract_rubric_text(exam.rubric_url)
+            # Extract rubric text from all pages
+            rubric_text = ""
+            for url in exam.rubric_urls:
+                rubric_text += extract_rubric_text(url)
 
             # Prepare content for GPT-4 Vision
             content = [
@@ -353,7 +361,7 @@ def student_page():
                     "type": "image_url",
                     "image_url": {
                         "url": url,
-                        "detail": "high"  # Request high detail analysis for handwriting
+                        "detail": "high"
                     }
                 })
 
@@ -369,7 +377,7 @@ def student_page():
             submission = Submission(
                 student_id=session['user_id'],
                 exam_id=exam.id,
-                answer_sheet_url=answer_sheet_urls[0],  # Store first page URL
+                answer_sheet_urls=answer_sheet_urls,  # Store all URLs
                 grade=grade
             )
             db.session.add(submission)
@@ -380,35 +388,11 @@ def student_page():
 
         except Exception as e:
             flash(f'Error processing PDF file: {str(e)}', 'error')
-            print(f"Error details: {str(e)}")  # For debugging
+            print(f"Error details: {str(e)}")
             return redirect(url_for('student_page'))
 
-    # Get student's submissions
     submissions = Submission.query.filter_by(student_id=session['user_id']).all()
     return render_template('student.html', submissions=submissions)
-
-@app.route('/api/register', methods=['POST'])
-def api_register():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    
-    if User.query.filter_by(username=username).first():
-        return jsonify({
-            'success': False,
-            'message': 'Username already exists'
-        }), 400
-    
-    user = User(username=username, role=role)
-    user.set_password(password)
-    db.session.add(user)
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'message': 'Registration successful'
-    })
 
 @app.route('/api/submit-answer', methods=['POST'])
 @login_required(role='student')
@@ -438,7 +422,7 @@ def api_get_submissions():
                 'exam_code': sub.exam.exam_code,
                 'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'grade': sub.grade,
-                'answer_sheet_url': sub.answer_sheet_url
+                'answer_sheet_urls': sub.answer_sheet_urls  # Return all URLs
             }
             for sub in submissions
         ]
