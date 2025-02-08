@@ -84,31 +84,30 @@
             margin-top: 30px;
         }
         .exam-item {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: rgb(255, 255, 255);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(255, 255, 255, 0.06);
             transition: transform 0.3s ease;
         }
         .exam-item:hover {
             transform: translateY(-5px);
         }
         .exam-item h3 {
-            color: #2c3e50;
-            margin-top: 0;
+            color: #1F2937;
+            font-size: 1.5rem;
             margin-bottom: 15px;
-            font-size: 1.2em;
         }
         .exam-item p {
             color: #64748b;
             margin: 8px 0;
         }
         .exam-code {
-            background: #f8fafc;
-            padding: 8px 12px;
+            background: #F3F4F6;
+            padding: 4px 12px;
             border-radius: 6px;
             font-family: monospace;
-            color: #475569;
+            color: #374151;
         }
         .exam-links {
             margin-top: 15px;
@@ -116,13 +115,13 @@
             gap: 10px;
         }
         .exam-links a {
-            color: #667eea;
+            color: #eff0f6;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease;
         }
         .exam-links a:hover {
-            color: #764ba2;
+            color: #ffffff;
         }
         .logout-btn {
             text-decoration: none;
@@ -231,6 +230,27 @@
             max-height: 2000px;
             transition: max-height 0.6s ease-in;
         }
+        .grade-content {
+            white-space: pre-wrap;
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+        .grade-content h3 {
+            color: #1e293b;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 20px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .grade-content h3:first-child {
+            margin-top: 0;
+        }
+        .grade-content strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
         .question-item {
             margin: 12px 0;
             padding: 12px 15px;
@@ -317,6 +337,64 @@
             background-color: #f8fafc;
             color: #667eea;
         }
+        .publish-form {
+            margin: 15px 0;
+        }
+
+        .publish-button {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        .publish-button:hover {
+            background: #059669;
+        }
+
+        .published-status {
+            margin: 15px 0;
+            padding: 8px 16px;
+            background: #f0fdf4;
+            color: #10b981;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .question-paper-btn {
+            background: linear-gradient(135deg, #8B5CF6, #6366F1);
+            color: white;
+            border: none;
+            margin-right: 10px;
+            transition: opacity 0.3s ease;
+        }
+        
+        .question-paper-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .rubric-btn {
+            background: linear-gradient(135deg, #8B5CF6, #6366F1);
+            color: white;
+            border: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .rubric-btn:hover {
+            opacity: 0.9;
+        }
+
+        .exam-links {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -380,22 +458,10 @@
                         <p>Exam Code: <span class="exam-code">{{ exam.exam_code }}</span></p>
                         <p>Created: {{ exam.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
                         <div class="exam-links">
-                            <div class="dropdown">
-                                <button class="button dropdown-toggle">View Question Paper</button>
-                                <div class="dropdown-content">
-                                    {% for url in exam.question_paper_urls %}
-                                        <a href="{{ url }}" target="_blank">Page {{ loop.index }}</a>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="dropdown">
-                                <button class="button dropdown-toggle">View Rubric</button>
-                                <div class="dropdown-content">
-                                    {% for url in exam.rubric_urls %}
-                                        <a href="{{ url }}" target="_blank">Page {{ loop.index }}</a>
-                                    {% endfor %}
-                                </div>
-                            </div>
+                            <a href="{{ exam.question_paper_file }}" 
+                               target="_blank" class="button question-paper-btn">View Question Paper</a>
+                            <a href="{{ exam.rubric_file }}" 
+                               target="_blank" class="button rubric-btn">View Rubric</a>
                         </div>
                     </div>
                 {% endfor %}
@@ -412,7 +478,20 @@
                             <p>Exam: {{ submission.exam.title }}</p>
                             <p>Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
                         </div>
-                        <a href="{{ submission.answer_sheet_url }}" target="_blank" class="button">View Answer Sheet</a>
+                        
+                        <a href="{{ submission.answer_sheet_file }}" 
+                           target="_blank" class="button">View Answer Sheet</a>
+
+                        <!-- Move publish button outside the collapsible section -->
+                        {% if not submission.is_published %}
+                            <form action="{{ url_for('publish_grade', submission_id=submission.id) }}" 
+                                  method="POST" class="publish-form">
+                                <button type="submit" class="publish-button">Publish Grade</button>
+                            </form>
+                        {% else %}
+                            <div class="published-status">Grade Published</div>
+                        {% endif %}
+
                         <div class="grade-section">
                             <div class="grade-heading" onclick="toggleGrade(this)">
                                 <span>Grade & Feedback</span>
@@ -421,32 +500,7 @@
                                 </svg>
                             </div>
                             <div class="grade-text">
-                                {% set grade_lines = submission.grade.split('\n') %}
-                                {% for line in grade_lines %}
-                                    {% if '### SECTION' in line %}
-                                        {% set section_parts = line.split('(') %}
-                                        {% set section_name = section_parts[0].replace('#', '').strip() %}
-                                        {% set section_marks = '(' + section_parts[1] if section_parts|length > 1 else '' %}
-                                        <div class="section">
-                                            <div class="section-title">
-                                                <span>{{ section_name }}</span>
-                                                <span class="section-marks">{{ section_marks }}</span>
-                                            </div>
-                                        </div>
-                                    {% elif '**Q' in line %}
-                                        <div class="question-item">
-                                            {% set parts = line.split('**') %}
-                                            {% set question = parts[1].split(':')[0].strip() %}
-                                            {% set feedback = parts[1].split(':')[1].strip() if ':' in parts[1] else parts[1].strip() %}
-                                            {% set marks = parts[-1].strip() %}
-                                            <div class="question-header">
-                                                <span class="question-number">{{ question }}</span>
-                                                <span class="question-score">{{ marks }}</span>
-                                            </div>
-                                            <div class="feedback-text">{{ feedback }}</div>
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
+                                <div class="grade-content">{{ submission.grade | safe }}</div>
                             </div>
                         </div>
                     </div>
@@ -469,8 +523,14 @@
         function toggleGrade(element) {
             const gradeText = element.nextElementSibling;
             const chevron = element.querySelector('.chevron');
-            gradeText.classList.toggle('show');
-            chevron.classList.toggle('rotated');
+            
+            if (gradeText.classList.contains('show')) {
+                gradeText.classList.remove('show');
+                chevron.classList.remove('rotated');
+            } else {
+                gradeText.classList.add('show');
+                chevron.classList.add('rotated');
+            }
         }
     </script>
 </body>

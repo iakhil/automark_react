@@ -212,6 +212,99 @@
             background-color: #f8fafc;
             color: #667eea;
         }
+        .grade-container {
+            margin-top: 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .section-header {
+            color: #1e293b;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 20px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .section-header:first-child {
+            margin-top: 0;
+        }
+
+        .question-grade {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .question-number {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .marks {
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .feedback {
+            color: #64748b;
+            margin: 8px 0 0 0;
+            font-size: 0.95em;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .total-marks {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .total-marks .marks {
+            font-size: 1.1em;
+            background: #818cf8;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .grade-text {
+            white-space: pre-wrap;
+            font-family: 'Poppins', sans-serif;
+            color: #2c3e50;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .pending-grade {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -258,18 +351,19 @@
                 <div class="submission-item">
                     <h3>{{ submission.exam.title }}</h3>
                     <p>Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
-                    <div class="answer-sheet-links">
-                        <div class="dropdown">
-                            <button class="button dropdown-toggle">View Answer Sheet</button>
-                            <div class="dropdown-content">
-                                {% for url in submission.answer_sheet_urls %}
-                                    <a href="{{ url }}" target="_blank">Page {{ loop.index }}</a>
-                                {% endfor %}
-                            </div>
+                    
+                    <a href="{{ submission.answer_sheet_file }}" 
+                       target="_blank" class="button">View Your Answer Sheet</a>
+                    
+                    {% if submission.is_published %}
+                        <div class="grade-container">
+                            <pre class="grade-text">{{ submission.grade }}</pre>
                         </div>
-                    </div>
-                    <p>Grade:</p>
-                    <div class="grade">{{ submission.grade }}</div>
+                    {% else %}
+                        <div class="pending-grade">
+                            Grade pending teacher review
+                        </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 from flask_cors import CORS
@@ -22,10 +22,15 @@ import tempfile
 from PIL import Image
 import fitz  # PyMuPDF
 import io
+from google import genai
+import httpx
+from google.genai import types
+import os.path
 
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///exam_portal.db'
+app.config['UPLOAD_FOLDER'] = 'uploads'
 CORS(app, 
      supports_credentials=True, 
      origins=['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:3000'],
@@ -33,14 +38,24 @@ CORS(app,
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 load_dotenv()
 
+# Add file upload configuration
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Create uploads directory if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Initialize database
 db.init_app(app)
 
 # Create all database tables
 with app.app_context():
-    db.drop_all()  # Drop all existing tables
-    db.create_all()  # Create new tables with updated schema
+    # Create tables without dropping existing ones
+    db.create_all()
     
-    # Create a test user if needed
+    # Create a test user only if it doesn't exist
     if not User.query.filter_by(username='test').first():
         test_user = User(username='test', role='teacher')
         test_user.set_password('test')
@@ -54,9 +69,9 @@ cloudinary.config(
     api_secret=os.environ.get("CLOUDINARY_API_SECRET")
 )
 
-client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY")
-)
+# Initialize Gemini
+# genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
+client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
 
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
@@ -236,6 +251,26 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
+# Helper function to check allowed file extensions
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Update the save_file function to upload to Cloudinary and return URL
+def save_file(file):
+    if file and allowed_file(file.filename):
+        try:
+            # Upload to Cloudinary
+            response = cloudinary.uploader.upload(
+                file,
+                resource_type="raw",
+                format="pdf"
+            )
+            return response['secure_url']
+        except Exception as e:
+            print(f"Cloudinary upload error: {str(e)}")
+            return None
+    return None
+
 @app.route('/teacher', methods=['GET', 'POST'])
 @login_required(role='teacher')
 def teacher_page():
@@ -256,22 +291,20 @@ def teacher_page():
         exam_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
         try:
-            # Upload files to Cloudinary and get all page URLs
-            question_paper_urls = convert_pdf_to_image_and_upload(
-                question_paper, 
-                f"teachers/{exam_code}/question_papers"
-            )
-            rubric_urls = convert_pdf_to_image_and_upload(
-                rubric_file, 
-                f"teachers/{exam_code}/rubrics"
-            )
+            # Upload files to Cloudinary
+            question_paper_url = save_file(question_paper)
+            rubric_url = save_file(rubric_file)
 
-            # Create new exam with all page URLs
+            if not question_paper_url or not rubric_url:
+                flash('Error uploading files!')
+                return redirect(url_for('teacher_page'))
+
+            # Create new exam with Cloudinary URLs
             exam = Exam(
                 title=title,
                 teacher_id=session['user_id'],
-                question_paper_urls=question_paper_urls,  # Store all URLs
-                rubric_urls=rubric_urls,  # Store all URLs
+                question_paper_file=question_paper_url,
+                rubric_file=rubric_url,
                 exam_code=exam_code
             )
             db.session.add(exam)
@@ -318,79 +351,64 @@ def student_page():
             return redirect(url_for('student_page'))
 
         try:
-            # Convert and upload all pages of the answer sheet
-            answer_sheet_urls = convert_pdf_to_image_and_upload(
-                answer_sheet,
-                f"students/{exam_code}/{session['user_id']}/answers"
-            )
+            # Upload answer sheet to Cloudinary
+            answer_sheet_url = save_file(answer_sheet)
+            if not answer_sheet_url:
+                flash('Error uploading answer sheet!', 'error')
+                return redirect(url_for('student_page'))
 
-            # Extract rubric text from all pages
-            rubric_text = ""
-            for url in exam.rubric_urls:
-                rubric_text += extract_rubric_text(url)
+            # Download PDFs from Cloudinary URLs
+            rubric_response = httpx.get(exam.rubric_file)
+            answer_response = httpx.get(answer_sheet_url)
 
-            # Prepare content for GPT-4 Vision
-            content = [
-                {
-                    "type": "text",
-                    "text": f"""Grade this handwritten answer sheet based on the following rubric:
+            # Create prompt for grading
+            prompt = "Grade this answer sheet according to the rubric provided. Format your response as follows:\n\n" + \
+                    "### SECTION [NAME] ([TOTAL] marks)\n" + \
+                    "**Q[number] ([max_marks])**: [Brief feedback] - [awarded]/[max_marks]"
 
-                    RUBRIC:
-                    {rubric_text}
-
-                    Format your response exactly as follows:
-
-                    ### SECTION A: [SECTION NAME] ([TOTAL MARKS])
-                    
-                    **Q1 (i)**: [1-2 sentence specific feedback] - [marks]
-                    **Q1 (ii)**: [1-2 sentence specific feedback] - [marks]
-                    
-                    Keep feedback concise and specific to each subquestion. 
-                    Follow the rubric strictly for marking.
-                    For each subquestion, provide:
-                    1. What was done correctly/incorrectly
-                    2. Marks awarded based on the rubric criteria
-                    
-                    Note: The answer sheet is handwritten. Please analyze the handwritten text carefully."""
-                }
-            ]
-
-            # Add all pages of the answer sheet as high-quality images
-            for url in answer_sheet_urls:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": url,
-                        "detail": "high"
+            # Request grading from Gemini using the PDFs as bytes
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=[
+                    {
+                        "parts": [
+                            {"text": prompt},
+                            {"inline_data": {
+                                "mime_type": "application/pdf",
+                                "data": rubric_response.content
+                            }},
+                            {"inline_data": {
+                                "mime_type": "application/pdf",
+                                "data": answer_response.content
+                            }}
+                        ]
                     }
-                })
-
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": content}],
-                max_tokens=1000
+                ]
             )
 
-            grade = response.choices[0].message.content.strip()
+            grade = response.text.strip()
+            print("DEBUG - Grade content:", grade)
 
-            # Save submission with all page URLs
+            # Save submission
             submission = Submission(
                 student_id=session['user_id'],
                 exam_id=exam.id,
-                answer_sheet_urls=answer_sheet_urls,  # Store all URLs
-                grade=grade
+                answer_sheet_file=answer_sheet_url,
+                grade=grade,
+                is_published=False
             )
             db.session.add(submission)
             db.session.commit()
 
-            flash('Answer sheet submitted successfully!', 'success')
+            flash('Answer sheet submitted successfully! Your grade will be visible once approved by the teacher.', 'success')
             return redirect(url_for('student_page'))
 
         except Exception as e:
-            flash(f'Error processing PDF file: {str(e)}', 'error')
+            flash(f'Error processing submission: {str(e)}', 'error')
             print(f"Error details: {str(e)}")
             return redirect(url_for('student_page'))
 
+    # Only show published grades to students
     submissions = Submission.query.filter_by(student_id=session['user_id']).all()
     return render_template('student.html', submissions=submissions)
 
@@ -427,6 +445,28 @@ def api_get_submissions():
             for sub in submissions
         ]
     })
+
+# New route for publishing grades
+@app.route('/publish_grade/<int:submission_id>', methods=['POST'])
+@login_required(role='teacher')
+def publish_grade(submission_id):
+    submission = Submission.query.get_or_404(submission_id)
+    
+    # Verify the teacher owns this exam
+    if submission.exam.teacher_id != session['user_id']:
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('teacher_page'))
+    
+    submission.is_published = True
+    db.session.commit()
+    
+    flash('Grade published successfully!', 'success')
+    return redirect(url_for('teacher_page'))
+
+# Add this new route to serve files from the uploads directory
+@app.route('/uploads/<path:filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
