@@ -51,7 +51,8 @@ db.init_app(app)
 
 # Create all database tables
 with app.app_context():
-    # Create tables without dropping existing ones
+    # Drop all tables and recreate them
+    db.drop_all()
     db.create_all()
     
     # Create a test user only if it doesn't exist
