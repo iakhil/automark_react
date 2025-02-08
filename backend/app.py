@@ -22,7 +22,7 @@ import tempfile
 from PIL import Image
 import fitz  # PyMuPDF
 import io
-from google import genai
+import google.generativeai as genai
 import httpx
 from google.genai import types
 import os.path
@@ -71,7 +71,7 @@ cloudinary.config(
 
 # Initialize Gemini
 # genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
+client = genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
