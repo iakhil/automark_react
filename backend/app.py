@@ -24,7 +24,6 @@ import fitz  # PyMuPDF
 import io
 import google.generativeai as genai
 import httpx
-from google.genai import types
 import os.path
 
 app = Flask(__name__, static_folder='static')
