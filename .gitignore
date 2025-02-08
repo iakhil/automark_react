@@ -31,3 +31,17 @@ build/
 *.cache
 *.pid
 *.pid.lock
+
+# Database files
+backend/exam_portal.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+
+# Uploaded files
+backend/uploads/
+uploads/
