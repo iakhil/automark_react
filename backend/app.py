@@ -364,11 +364,11 @@ def student_page():
             # Create prompt for grading
             prompt = "Grade this answer sheet according to the rubric provided. Format your response as follows:\n\n" + \
                     "### SECTION [NAME] ([TOTAL] marks)\n" + \
-                    "**Q[number] ([max_marks])**: [Brief feedback] - [awarded]/[max_marks]"
+                    "**Q[number] ([max_marks])**: [Brief feedback] - [awarded]/[max_marks]. There could be multiple choice questions. For these, the student might right the option in their response, e.g. 'B'. In the rubric, for these questions, the correction option might be present, e.g. 'C'. If they mismatch, then deduct points for that question. Directly start your response with the grading without any preamble."
 
             # Request grading from Gemini using the PDFs as bytes
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.0-flash",
                 contents=[
                     {
                         "parts": [

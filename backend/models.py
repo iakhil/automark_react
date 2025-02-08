@@ -21,8 +21,8 @@ class Exam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    question_paper_urls = db.Column(db.JSON, nullable=False)  # Store array of URLs
-    rubric_urls = db.Column(db.JSON, nullable=False)  # Store array of URLs
+    question_paper_file = db.Column(db.String(255), nullable=False)
+    rubric_file = db.Column(db.String(255), nullable=False)
     exam_code = db.Column(db.String(10), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     submissions = db.relationship('Submission', backref='exam', lazy=True)
@@ -31,6 +31,7 @@ class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
-    answer_sheet_urls = db.Column(db.JSON, nullable=False)  # Store array of URLs
+    answer_sheet_file = db.Column(db.String(255), nullable=False)
     grade = db.Column(db.Text, nullable=True)
+    is_published = db.Column(db.Boolean, default=False)
     submitted_at = db.Column(db.DateTime, server_default=db.func.now()) 
