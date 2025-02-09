@@ -1,117 +1,238 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login - Exam Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <title>AutoMark - AI-Powered Exam Grading</title>
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background-color: #0f172a;
+            color: #e2e8f0;
         }
-        .form-container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
         }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 30px;
+
+        .hero {
             text-align: center;
-            font-size: 2em;
+            margin-bottom: 60px;
         }
+
+        .hero h1 {
+            font-size: 2.5em;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 1.2em;
+            color: #94a3b8;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+
+        .feature-card h3 {
+            color: #60a5fa;
+            margin-top: 0;
+        }
+
+        .feature-card p {
+            color: #94a3b8;
+        }
+
+        .how-to-use {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+            margin-bottom: 40px;
+        }
+
+        .how-to-use summary {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #60a5fa;
+            cursor: pointer;
+            padding: 10px 0;
+        }
+
+        .how-to-use ul {
+            margin-top: 20px;
+            padding-left: 20px;
+        }
+
+        .how-to-use li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .login-section {
+            max-width: 400px;
+            margin: 0 auto;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
-        label {
+
+        .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #2c3e50;
             font-weight: 500;
+            color: #e2e8f0;
         }
-        input {
+
+        .form-group input {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+            padding: 10px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 6px;
+            font-size: 1em;
         }
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
+
         .button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #3b82f6;
             color: white;
+            padding: 12px 24px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
+            border-radius: 6px;
+            font-size: 1em;
             cursor: pointer;
-            transition: transform 0.3s ease;
+            width: 100%;
+            transition: background-color 0.2s ease;
         }
+
         .button:hover {
-            transform: translateY(-2px);
+            background: #2563eb;
         }
-        .message {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            background-color: #fef9c3;
-            color: #854d0e;
-            text-align: center;
-        }
-        p {
+
+        .register-link {
             text-align: center;
             margin-top: 20px;
         }
-        a {
-            color: #667eea;
+
+        .register-link a {
+            color: #60a5fa;
             text-decoration: none;
             font-weight: 500;
         }
-        a:hover {
-            text-decoration: underline;
+
+        .register-link a:hover {
+            color: #3b82f6;
+        }
+
+        .register-link p {
+            color: #94a3b8;
+        }
+
+        .message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .error {
+            background-color: #7f1d1d;
+            color: #fecaca;
+            border: 1px solid #ef4444;
         }
     </style>
 </head>
 <body>
-    <div class="form-container">
-        <h1>Welcome to Exam Portal</h1>
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="message">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <form method="POST">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
+    <div class="container">
+        <div class="hero">
+            <h1>AutoMark</h1>
+            <p>Streamline your exam grading process with our AI-powered solution. Upload answer sheets and get instant, consistent grading based on your rubric.</p>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <h3>Automated Grading</h3>
+                <p>Our AI analyzes student responses against your rubric for quick and accurate grading.</p>
             </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
+            <div class="feature-card">
+                <h3>Consistent Evaluation</h3>
+                <p>Ensure fair grading with standardized criteria and detailed feedback.</p>
             </div>
-            
-            <button type="submit" class="button">Login</button>
-        </form>
-        
-        <p>Don't have an account? <a href="{{ url_for('register_page') }}">Register here</a></p>
+            <div class="feature-card">
+                <h3>Time-Saving</h3>
+                <p>Reduce grading time significantly while maintaining quality assessment.</p>
+            </div>
+        </div>
+
+        <div class="how-to-use">
+            <details>
+                <summary>How to Use?</summary>
+                <div>
+                    <h4>For Teachers:</h4>
+                    <ul>
+                        <li>Upload your question paper and grading rubric</li>
+                        <li>Share the generated exam code with students</li>
+                        <li>Review and publish AI-generated grades</li>
+                    </ul>
+                    <h4>For Students:</h4>
+                    <ul>
+                        <li>Enter the exam code provided by your teacher</li>
+                        <li>Upload your answer sheet in PDF format</li>
+                        <li>Receive detailed feedback once approved</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <div class="login-section">
+            <h2>Login</h2>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="message error">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="POST">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="button">Login</button>
+            </form>
+            <div class="register-link">
+                <p>Don't have an account? <a href="{{ url_for('register_page') }}">Register here</a></p>
+            </div>
+        </div>
     </div>
 </body>
 </html> 
