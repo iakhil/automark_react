@@ -9,8 +9,6 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'teacher' or 'student'
-    submissions = db.relationship('Submission', backref='student', lazy=True)
-    exams = db.relationship('Exam', backref='teacher', lazy=True)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -27,7 +25,8 @@ class Exam(db.Model):
     exam_code = db.Column(db.String(6), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    teacher = db.relationship('User', backref='exams')
+    # Relationships
+    teacher = db.relationship('User', backref=db.backref('created_exams', lazy=True))
     submissions = db.relationship('Submission', backref='exam', lazy=True)
 
 class Submission(db.Model):
@@ -39,4 +38,5 @@ class Submission(db.Model):
     is_published = db.Column(db.Boolean, default=False)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    student = db.relationship('User', backref='submissions') 
+    # Relationships
+    student = db.relationship('User', backref=db.backref('student_submissions', lazy=True)) 
