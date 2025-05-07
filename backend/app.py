@@ -28,10 +28,10 @@ import os.path
 import stripe
 from datetime import datetime, timedelta
 import markdown
-
+import os
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///exam_portal.db'
+app.config['SQLALCHEMY_DATABASE_URI']  = os.environ.get('DATABASE_URL')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 CORS(app, 
      supports_credentials=True, 
