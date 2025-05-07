@@ -34,6 +34,7 @@ build/
 
 # Database files
 backend/exam_portal.db
+backend/instance/exam_portal.db
 *.db
 *.sqlite
 *.sqlite3
