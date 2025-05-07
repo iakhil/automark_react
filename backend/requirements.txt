@@ -16,3 +16,4 @@ gunicorn
 openai
 stripe==7.14.0
 google-genai
+markdown
