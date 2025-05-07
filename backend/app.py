@@ -22,9 +22,12 @@ import tempfile
 from PIL import Image
 import fitz  # PyMuPDF
 import io
-import google.generativeai as genai
+from google import genai
 import httpx
 import os.path
+import stripe
+from datetime import datetime, timedelta
+import markdown
 
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
@@ -51,8 +54,7 @@ db.init_app(app)
 
 # Create all database tables
 with app.app_context():
-    # Drop all tables and recreate them
-    db.drop_all()
+    # Create tables if they don't exist
     db.create_all()
     
     # Create a test user only if it doesn't exist
@@ -71,7 +73,10 @@ cloudinary.config(
 
 # Initialize Gemini
 # genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-client = genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
+client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
+
+# Initialize Stripe
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
@@ -387,6 +392,16 @@ def student_page():
             )
 
             grade = response.text.strip()
+            # Preprocess for markdown: ensure blank line before lists
+            lines = grade.split('\n')
+            processed_lines = []
+            for i, line in enumerate(lines):
+                if line.strip().startswith('*') and (i == 0 or lines[i-1].strip() != ''):
+                    processed_lines.append('')  # Insert blank line before list
+                processed_lines.append(line)
+            grade = '\n'.join(processed_lines)
+            # Convert markdown to HTML
+            grade = markdown.markdown(grade)
             print("DEBUG - Grade content:", grade)
 
             # Save submission
@@ -404,6 +419,7 @@ def student_page():
             return redirect(url_for('student_page'))
 
         except Exception as e:
+            print(f"Client: {client}")
             flash(f'Error processing submission: {str(e)}', 'error')
             print(f"Error details: {str(e)}")
             return redirect(url_for('student_page'))
@@ -467,6 +483,84 @@ def publish_grade(submission_id):
 @app.route('/uploads/<path:filename>')
 def serve_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# Add these routes for handling payments
+@app.route('/pricing')
+def pricing():
+    return render_template('pricing.html')
+
+@app.route('/create-checkout-session', methods=['POST'])
+@login_required()
+def create_checkout_session():
+    try:
+        price_id = request.form.get('price_id')
+        
+        # Create or get Stripe customer
+        user = User.query.get(session['user_id'])
+        if not user.subscription or not user.subscription.stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=user.username,  # Assuming username is email
+                metadata={'user_id': user.id}
+            )
+            customer_id = customer.id
+        else:
+            customer_id = user.subscription.stripe_customer_id
+
+        # Create checkout session
+        checkout_session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=['card'],
+            line_items=[{'price': price_id, 'quantity': 1}],
+            mode='subscription',
+            success_url=url_for('payment_success', _external=True),
+            cancel_url=url_for('payment_cancel', _external=True),
+        )
+
+        return jsonify({'sessionId': checkout_session.id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 403
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    payload = request.get_data()
+    sig_header = request.headers.get('Stripe-Signature')
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.environ.get('STRIPE_WEBHOOK_SECRET')
+        )
+
+        if event.type == 'checkout.session.completed':
+            session = event.data.object
+            handle_checkout_session(session)
+        elif event.type == 'invoice.paid':
+            invoice = event.data.object
+            handle_subscription_updated(invoice)
+        elif event.type == 'invoice.payment_failed':
+            invoice = event.data.object
+            handle_payment_failed(invoice)
+
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+def handle_checkout_session(session):
+    customer_id = session.customer
+    subscription_id = session.subscription
+    user_id = stripe.Customer.retrieve(customer_id).metadata.user_id
+
+    subscription = Subscription(
+        user_id=user_id,
+        stripe_customer_id=customer_id,
+        stripe_subscription_id=subscription_id,
+        plan_type='premium',  # Adjust based on the price_id
+        status='active',
+        current_period_end=datetime.fromtimestamp(
+            stripe.Subscription.retrieve(subscription_id).current_period_end
+        )
+    )
+    db.session.add(subscription)
+    db.session.commit()
 
 if __name__ == '__main__':
     app.run(debug=True)

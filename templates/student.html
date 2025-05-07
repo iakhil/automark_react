@@ -31,7 +31,6 @@
             margin: 15px 0;
             background-color: #e9ecef;
             border-radius: 5px;
-            white-space: pre-wrap;
         }
         .submission-list {
             margin-top: 20px;
@@ -79,7 +78,7 @@
                 <h3>Exam: {{ submission.exam.title }}</h3>
                 <p>Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
                 <p>Grade:</p>
-                <div class="grade">{{ submission.grade }}</div>
+                <div class="grade">{{ submission.grade|safe }}</div>
             </div>
         {% endfor %}
     </div>

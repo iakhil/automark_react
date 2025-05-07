@@ -9,6 +9,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'teacher' or 'student'
+    subscription = db.relationship('Subscription', backref='user', uselist=False)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -39,4 +40,14 @@ class Submission(db.Model):
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    student = db.relationship('User', backref=db.backref('student_submissions', lazy=True)) 
+    student = db.relationship('User', backref=db.backref('student_submissions', lazy=True))
+
+class Subscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    stripe_customer_id = db.Column(db.String(255), unique=True)
+    stripe_subscription_id = db.Column(db.String(255), unique=True)
+    plan_type = db.Column(db.String(50))  # 'free', 'basic', 'premium'
+    status = db.Column(db.String(50))  # 'active', 'canceled', 'past_due'
+    current_period_end = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow) 
