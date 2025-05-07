@@ -17,3 +17,4 @@ openai
 stripe==7.14.0
 google-genai
 markdown
+psycopg2-binary
