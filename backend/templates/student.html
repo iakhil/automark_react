@@ -305,6 +305,43 @@
             text-align: center;
             font-weight: 500;
         }
+
+        .grade-content {
+            white-space: pre-wrap;
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+        }
+        .grade-content h1, 
+        .grade-content h2, 
+        .grade-content h3 {
+            color: #1e293b;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 20px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .grade-content h1:first-child,
+        .grade-content h2:first-child,
+        .grade-content h3:first-child {
+            margin-top: 0;
+        }
+        .grade-content strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .grade-content ul {
+            list-style-type: disc;
+            padding-left: 1.5em;
+            margin: 1em 0;
+        }
+        .grade-content li {
+            margin: 0.5em 0;
+        }
+        .grade-content p {
+            margin: 1em 0;
+        }
     </style>
 </head>
 <body>
@@ -357,7 +394,7 @@
                     
                     {% if submission.is_published %}
                         <div class="grade-container">
-                            <pre class="grade-text">{{ submission.grade }}</pre>
+                            <div class="grade-content">{{ submission.grade | safe }}</div>
                         </div>
                     {% else %}
                         <div class="pending-grade">

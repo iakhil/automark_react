@@ -27,8 +27,9 @@ import httpx
 import os.path
 import stripe
 from datetime import datetime, timedelta
-import markdown
 import os
+
+load_dotenv()
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI']  = os.environ.get('DATABASE_URL')
@@ -81,7 +82,7 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 # AI grading logic using the new OpenAI API structure
 def grade_response(student_response, rubrix):
     print(f"Student response: {student_response}")
-    prompt = f"Grade the following student response based on the rubric. Provide the total marks obtained for each question. Keep your remarks succinct.:\n\nRubric:\n{rubrix}\n\nStudent Response:\n{student_response}\n"
+    prompt = f"Grade the following student response based on the rubric. Provide the total marks obtained for each question. Generate the response in the form of HTML. Keep your remarks succinct.:\n\nRubric:\n{rubrix}\n\nStudent Response:\n{student_response}\n"
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
@@ -367,9 +368,14 @@ def student_page():
             answer_response = httpx.get(answer_sheet_url)
 
             # Create prompt for grading
-            prompt = "Grade this answer sheet according to the rubric provided. Format your response as follows:\n\n" + \
-                    "### SECTION [NAME] ([TOTAL] marks)\n" + \
-                    "**Q[number] ([max_marks])**: [Brief feedback] - [awarded]/[max_marks]. There could be multiple choice questions. For these, the student might right the option in their response, e.g. 'B'. In the rubric, for these questions, the correction option might be present, e.g. 'C'. If they mismatch, then deduct points for that question. Directly start your response with the grading without any preamble."
+            prompt = """Grade this answer sheet according to the rubric provided. Format your response in HTML as follows:
+
+<h3>SECTION [NAME] ([TOTAL] marks)</h3>
+<p><strong>Q[number] ([max_marks])</strong>: [Brief feedback] - [awarded]/[max_marks]</p>
+
+There could be multiple choice questions. For these, the student might write the option in their response, e.g. 'B'. 
+In the rubric, for these questions, the correct option might be present, e.g. 'C'. If they mismatch, then deduct points for that question.
+Directly start your response with the grading without any preamble."""
 
             # Request grading from Gemini using the PDFs as bytes
             response = client.models.generate_content(
@@ -392,19 +398,9 @@ def student_page():
             )
 
             grade = response.text.strip()
-            # Preprocess for markdown: ensure blank line before lists
-            lines = grade.split('\n')
-            processed_lines = []
-            for i, line in enumerate(lines):
-                if line.strip().startswith('*') and (i == 0 or lines[i-1].strip() != ''):
-                    processed_lines.append('')  # Insert blank line before list
-                processed_lines.append(line)
-            grade = '\n'.join(processed_lines)
-            # Convert markdown to HTML
-            grade = markdown.markdown(grade)
             print("DEBUG - Grade content:", grade)
 
-            # Save submission
+            # Save submission with HTML directly
             submission = Submission(
                 student_id=session['user_id'],
                 exam_id=exam.id,

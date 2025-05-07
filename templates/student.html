@@ -41,6 +41,32 @@
             margin-bottom: 10px;
             border-radius: 5px;
         }
+        .grade-section {
+            margin-bottom: 18px;
+        }
+        .grade-section-title {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .grade-question-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .grade-question-item {
+            margin-bottom: 10px;
+            background: #fff;
+            border-radius: 4px;
+            padding: 8px 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .grade-question {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .grade-feedback {
+            color: #222;
+        }
     </style>
 </head>
 <body>
@@ -78,7 +104,21 @@
                 <h3>Exam: {{ submission.exam.title }}</h3>
                 <p>Submitted: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
                 <p>Grade:</p>
-                <div class="grade">{{ submission.grade|safe }}</div>
+                <div class="grade">
+                  {% for section in submission.grade_structured %}
+                    <div class="grade-section">
+                      <div class="grade-section-title"><strong>{{ section.title }}</strong></div>
+                      <ul class="grade-question-list">
+                        {% for q in section.questions %}
+                          <li class="grade-question-item">
+                            <span class="grade-question">{{ q.question }}</span><br>
+                            <span class="grade-feedback">{{ q.feedback }}</span>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endfor %}
+                </div>
             </div>
         {% endfor %}
     </div>
