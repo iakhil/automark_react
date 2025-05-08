@@ -28,17 +28,21 @@ import os.path
 import stripe
 from datetime import datetime, timedelta
 import os
+from werkzeug.middleware.proxy_fix import ProxyFix 
 
 load_dotenv()
 app = Flask(__name__, static_folder='static')
+app.wsgi_app = ProxyFix(
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+    ) 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI']  = os.environ.get('DATABASE_URL')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Add explicit session cookie settings
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = None  # None allows cross-domain cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # None allows cross-domain cookies
 app.config['SESSION_COOKIE_DOMAIN'] = None  # Allow browser to set automatically
 app.config['SESSION_COOKIE_PATH'] = '/'
 
