@@ -1,8 +1,7 @@
 // API base URL - use the exact same origin as the browser uses to avoid CORS issues
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? `http://${window.location.hostname}:5000`
-  : '';  // Use relative URL in production
 
+  // Use environment variable for the backend API URL
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; // Fallback for local dev
 // Common fetch options
 const commonFetchOptions = {
   credentials: 'include' as RequestCredentials,
