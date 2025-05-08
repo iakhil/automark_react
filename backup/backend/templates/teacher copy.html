@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .exam-list {
+            margin-top: 20px;
+        }
+        .exam-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teacher Portal</h1>
+    <div style="text-align: right;">
+        <a href="{{ url_for('logout') }}" class="button">Logout</a>
+    </div>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="title">Exam Title:</label><br>
+            <input type="text" id="title" name="title" required>
+        </div>
+
+        <div class="form-group">
+            <label for="question_paper">Upload Question Paper (PDF):</label><br>
+            <input type="file" id="question_paper" name="question_paper" accept=".pdf" required>
+        </div>
+
+        <div class="form-group">
+            <label for="rubric_file">Upload Rubric (PDF):</label><br>
+            <input type="file" id="rubric_file" name="rubric_file" accept=".pdf" required>
+        </div>
+
+        <button type="submit" class="button">Create Exam</button>
+    </form>
+
+    <div class="exam-list">
+        <h2>Your Exams</h2>
+        {% for exam in exams %}
+            <div class="exam-item">
+                <h3>{{ exam.title }}</h3>
+                <p>Exam Code: {{ exam.exam_code }}</p>
+                <p>Created: {{ exam.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                <a href="{{ exam.question_paper_url }}" target="_blank">View Question Paper</a> |
+                <a href="{{ exam.rubric_url }}" target="_blank">View Rubric</a>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html> 

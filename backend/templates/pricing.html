@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AutoMark - Pricing</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        /* Use similar dark theme styling as login.html */
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .pricing-card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            text-align: center;
+        }
+
+        .price {
+            font-size: 2em;
+            color: #60a5fa;
+            margin: 20px 0;
+        }
+
+        .subscribe-button {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .subscribe-button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>Choose Your Plan</h1>
+        </div>
+
+        <div class="pricing-cards">
+            <div class="pricing-card">
+                <h2>Basic</h2>
+                <div class="price">$9.99/mo</div>
+                <ul>
+                    <li>Up to 100 submissions/month</li>
+                    <li>Basic AI grading</li>
+                    <li>Email support</li>
+                </ul>
+                <button class="subscribe-button" data-price-id="price_basic">Subscribe</button>
+            </div>
+
+            <div class="pricing-card">
+                <h2>Premium</h2>
+                <div class="price">$29.99/mo</div>
+                <ul>
+                    <li>Unlimited submissions</li>
+                    <li>Advanced AI grading</li>
+                    <li>Priority support</li>
+                    <li>Analytics dashboard</li>
+                </ul>
+                <button class="subscribe-button" data-price-id="price_premium">Subscribe</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const stripe = Stripe('{{ stripe_publishable_key }}');
+
+        document.querySelectorAll('.subscribe-button').forEach(button => {
+            button.addEventListener('click', async () => {
+                const priceId = button.dataset.priceId;
+                
+                const response = await fetch('/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `price_id=${priceId}`,
+                });
+                
+                const session = await response.json();
+                
+                if (session.error) {
+                    console.error(session.error);
+                    return;
+                }
+                
+                stripe.redirectToCheckout({ sessionId: session.sessionId });
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload and Grade Files</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input[type="file"], input[type="text"], textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        textarea {
+            resize: none;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            text-align: center;
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-list li {
+            margin-bottom: 10px;
+        }
+        .file-list a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .file-list a:hover {
+            text-decoration: underline;
+        }
+        .result {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload and Grade Files</h1>
+
+        <!-- Display messages -->
+        {% if message %}
+        <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <!-- Upload Form -->
+        <form action="/upload_teacher" method="post" enctype="multipart/form-data">
+            <label for="file">Upload Question Paper:</label>
+            <input type="file" id="file" name="file" required>
+
+            <label for="rubric_file">Upload Rubric:</label>
+            <input type="file" id="rubric_file" name="rubric_file" required>
+
+            <label for="answer_sheet">Upload Student Answer Sheet:</label>
+            <input type="file" id="answer_sheet" name="answer_sheet" required>
+
+            <button type="submit">Upload</button>
+        </form>
+
+        <!-- Grading Form -->
+        <form id="grading-form">
+            <label for="question_paper_url">Question Paper URL:</label>
+            <input type="text" id="question_paper_url" name="question_paper_url" placeholder="Enter Question Paper URL" required>
+
+            <label for="marking_scheme_url">Marking Scheme URL:</label>
+            <input type="text" id="marking_scheme_url" name="marking_scheme_url" placeholder="Enter Marking Scheme URL" required>
+
+            <label for="student_response_url">Student Response URL:</label>
+            <input type="text" id="student_response_url" name="student_response_url" placeholder="Enter Student Response URL" required>
+
+            <label for="prompt">Grading Prompt:</label>
+            <textarea id="prompt" name="prompt" rows="4" cols="50">You are a teacher grading a student's work. Here's the question paper, marking scheme, and the student's response. Evaluate the student's response based on the provided materials, assign a score for each individual question.</textarea>
+
+            <button type="submit">Grade</button>
+        </form>
+
+        <div id="result" class="result"></div>
+
+        <!-- List of uploaded files -->
+        <h2>Already Uploaded Files</h2>
+        <ul class="file-list">
+            {% for file_id, file_url in files %}
+            <li>
+                {% if "http" in file_url %}
+                <!-- External URL -->
+                <a href="{{ file_url }}" target="_blank">{{ file_id }}</a>
+                {% else %}
+                <!-- Internal Static File -->
+                <a href="{{ url_for('static', filename=file_url) }}" target="_blank">{{ file_id }}</a>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        document.getElementById('grading-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const question_paper_url = document.getElementById('question_paper_url').value;
+            const marking_scheme_url = document.getElementById('marking_scheme_url').value;
+            const student_response_url = document.getElementById('student_response_url').value;
+            const prompt = document.getElementById('prompt').value;
+
+            const response = await fetch('/grade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_paper_url, marking_scheme_url, student_response_url, prompt }),
+            });
+
+            const resultDiv = document.getElementById('result');
+            if (response.ok) {
+                const data = await response.json();
+                resultDiv.innerText = data.result;
+            } else {
+                const error = await response.json();
+                resultDiv.innerText = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
