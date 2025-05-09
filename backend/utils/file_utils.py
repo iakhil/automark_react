@@ -2,7 +2,7 @@ import os
 import uuid
 import time
 import cloudinary
-from cloudinary import uploader  # Correctly import uploader module
+from cloudinary import uploader
 import fitz  # PyMuPDF
 from flask import current_app, request
 from werkzeug.utils import secure_filename
@@ -20,15 +20,13 @@ def ensure_cloudinary_config():
     Returns:
         bool: True if configured successfully, False otherwise
     """
-    # Load environment variables first
-    load_dotenv()
+    load_dotenv()  # Load .env into os.environ
     
-    # Get Cloudinary credentials from environment
-    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
-    api_key = os.environ.get('CLOUDINARY_API_KEY')
-    api_secret = os.environ.get('CLOUDINARY_API_SECRET')
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+    api_key    = os.getenv('CLOUDINARY_API_KEY')
+    api_secret = os.getenv('CLOUDINARY_API_SECRET')
     
-    if not cloud_name or not api_key or not api_secret:
+    if not (cloud_name and api_key and api_secret):
         print("Cloudinary credentials not found in environment variables")
         return False
     
@@ -39,13 +37,13 @@ def ensure_cloudinary_config():
         api_secret=api_secret
     )
     
-    # Verify configuration
-    config = cloudinary.config()
-    if not config.get('api_key'):
+    # Verify configuration via attributes, not dict.get()
+    cfg = cloudinary.config()
+    if not cfg.api_key:
         print("Cloudinary configuration failed")
         return False
         
-    print(f"Cloudinary configured successfully with cloud_name: {cloud_name}")
+    print(f"Cloudinary configured successfully with cloud_name: {cfg.cloud_name}")
     return True
 
 def allowed_file(filename):
@@ -61,8 +59,10 @@ def allowed_file(filename):
     if not filename:
         return False
     
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+    return (
+        '.' in filename and
+        filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+    )
 
 def save_file(file, directory='uploads'):
     """
@@ -79,73 +79,46 @@ def save_file(file, directory='uploads'):
     _, ext = os.path.splitext(file.filename)
     unique_filename = f"{str(uuid.uuid4())}{ext}"
     
-    # Try to upload to Cloudinary first
+    # Try Cloudinary first
     try:
         print(f"Uploading file: {file.filename} to Cloudinary")
         
-        # Configure Cloudinary
         if not ensure_cloudinary_config():
             raise ValueError("Failed to configure Cloudinary")
         
-        # Reset file position to beginning to ensure we can read the entire file
         file.seek(0)
-        
-        # Read file data into memory
-        file_data = file.read()
-        print(f"File read into memory, size: {len(file_data)} bytes")
-        
-        # Upload to Cloudinary with folder structure
+        # You can upload the FileStorage directly
         upload_folder = f"{directory}/{unique_filename.split('.')[0]}"
         print(f"Attempting Cloudinary upload to folder: {upload_folder}")
         
-        try:
-            response = uploader.upload(
-                file_data,
-                resource_type="auto",
-                folder=upload_folder,
-                use_filename=True,
-                filename=file.filename,
-                unique_filename=True
-            )
-            print(f"Cloudinary upload successful, response type: {type(response)}")
-            
-            # Return Cloudinary URL
-            print(f"File successfully uploaded to Cloudinary: {response['secure_url']}")
-            return response['secure_url']
-            
-        except Exception as cloudinary_error:
-            print(f"Specific Cloudinary upload error: {str(cloudinary_error)}")
-            raise cloudinary_error
+        response = uploader.upload(
+            file,
+            resource_type="auto",
+            folder=upload_folder,
+            use_filename=True,
+            unique_filename=True
+        )
+        
+        print(f"File successfully uploaded to Cloudinary: {response['secure_url']}")
+        return response['secure_url']
         
     except Exception as e:
-        # Log the error
-        print(f"Cloudinary upload error: {str(e)}")
-        current_app.logger.warning(f"Failed to upload to Cloudinary, falling back to local storage: {str(e)}")
+        print(f"Cloudinary upload error: {e}")
+        current_app.logger.warning(f"Failed to upload to Cloudinary, falling back to local storage: {e}")
         
-        # Fall back to local file storage
-        try:
-            # Create directory if it doesn't exist
-            os.makedirs(os.path.join(current_app.config['UPLOAD_FOLDER'], directory), exist_ok=True)
-            
-            # Reset file position to beginning
-            file.seek(0)
-            
-            # Save file locally
-            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], directory, unique_filename)
-            file.save(file_path)
-            
-            # Generate URL for the file
-            base_url = request.host_url.rstrip('/')
-            file_url = f"{base_url}/uploads/{directory}/{unique_filename}"
-            
-            print(f"File saved locally: {file_path}")
-            current_app.logger.info(f"File saved locally at: {file_path}")
-            
-            return file_url
-            
-        except Exception as local_error:
-            current_app.logger.error(f"Failed to save file locally: {str(local_error)}")
-            raise
+        # Fall back to local storage
+        os.makedirs(os.path.join(current_app.config['UPLOAD_FOLDER'], directory), exist_ok=True)
+        file.seek(0)
+        
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], directory, unique_filename)
+        file.save(file_path)
+        
+        base_url = request.host_url.rstrip('/')
+        file_url = f"{base_url}/uploads/{directory}/{unique_filename}"
+        
+        print(f"File saved locally: {file_path}")
+        current_app.logger.info(f"File saved locally at: {file_path}")
+        return file_url
 
 def create_session_with_retry():
     """
@@ -178,68 +151,52 @@ def convert_pdf_to_image_and_upload(pdf_file, folder):
         list: List of URLs for the uploaded images
     """
     try:
-        # Configure Cloudinary
         if not ensure_cloudinary_config():
             raise ValueError("Failed to configure Cloudinary")
         
-        # Read PDF content
         pdf_file.seek(0)
         pdf_content = pdf_file.read()
-        
-        # Print debug info
         print(f"PDF content read, size: {len(pdf_content)} bytes")
         
         pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
         uploaded_urls = []
-        
-        # Print PDF info
         print(f"PDF opened successfully, {pdf_document.page_count} pages found")
 
-        # Convert each page to image
         for page_num in range(pdf_document.page_count):
             page = pdf_document[page_num]
-            
-            # Get page as image with higher resolution
             pix = page.get_pixmap(matrix=fitz.Matrix(300/72, 300/72))
             
-            try:
-                # Convert to PIL Image
-                from PIL import Image
-                img_data = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                
-                # Save image to bytes
-                img_byte_array = io.BytesIO()
-                img_data.save(img_byte_array, format='JPEG', quality=95)
-                img_byte_array.seek(0)
-    
-                # Upload to Cloudinary with retries
-                max_attempts = 3
-                for attempt in range(max_attempts):
-                    try:
-                        upload_result = uploader.upload(
-                            img_byte_array,
-                            folder=folder,
-                            quality='auto:best',
-                            fetch_format='auto',
-                            timeout=30,
-                            public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{page_num + 1}"
-                        )
-                        uploaded_urls.append(upload_result['url'])
-                        break
-                    except Exception as upload_error:
-                        if attempt == max_attempts - 1:
-                            raise upload_error
-                        time.sleep(2 ** attempt)
-            except ImportError:
-                print("PIL/Pillow is not installed. Cannot convert PDF to images.")
-                raise
-
+            from PIL import Image
+            img_data = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            
+            img_byte_array = io.BytesIO()
+            img_data.save(img_byte_array, format='JPEG', quality=95)
+            img_byte_array.seek(0)
+            
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                try:
+                    upload_result = uploader.upload(
+                        img_byte_array,
+                        folder=folder,
+                        quality='auto:best',
+                        fetch_format='auto',
+                        timeout=30,
+                        public_id=f"{secure_filename(pdf_file.filename).rsplit('.', 1)[0]}_page_{page_num + 1}"
+                    )
+                    uploaded_urls.append(upload_result['url'])
+                    break
+                except Exception as upload_error:
+                    if attempt == max_attempts - 1:
+                        raise upload_error
+                    time.sleep(2 ** attempt)
+        
         pdf_document.close()
         return uploaded_urls
 
     except Exception as e:
-        print(f"PDF processing error: {str(e)}")
-        raise Exception(f"Failed to process the PDF file: {str(e)}")
+        print(f"PDF processing error: {e}")
+        raise Exception(f"Failed to process the PDF file: {e}")
 
 def extract_pdf_text(pdf_file):
     """
@@ -254,7 +211,7 @@ def extract_pdf_text(pdf_file):
     reader = PdfReader(pdf_file)
     text = ""
     for page in reader.pages:
-        text += page.extract_text()
+        text += page.extract_text() or ""
     return text
 
 def extract_rubric_text(pdf_url):
@@ -268,25 +225,20 @@ def extract_rubric_text(pdf_url):
         str: Extracted text from the PDF
     """
     try:
-        # Create session with retry mechanism
         session = create_session_with_retry()
-        
-        # Download PDF with retry mechanism
         response = session.get(pdf_url, timeout=30)
         response.raise_for_status()
         
-        # Read PDF content
         pdf_content = response.content
         pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
         
         text = ""
         for page_num in range(pdf_document.page_count):
-            page = pdf_document[page_num]
-            text += page.get_text()
+            text += pdf_document[page_num].get_text()
         
         pdf_document.close()
         return text
         
     except Exception as e:
-        print(f"Rubric extraction error: {str(e)}")
-        raise Exception(f"Failed to process rubric: {str(e)}") 
+        print(f"Rubric extraction error: {e}")
+        raise Exception(f"Failed to process rubric: {e}")
