@@ -19,3 +19,4 @@ stripe==7.14.0
 google-genai
 markdown
 psycopg2-binary
+Flask-Session==0.5.0
