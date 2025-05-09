@@ -53,7 +53,9 @@ class DevelopmentConfig(Config):
         'http://localhost:5000',
         'http://127.0.0.1:5000',
         'http://localhost:3000',
-        'http://127.0.0.1:3000'
+        'http://127.0.0.1:3000',
+        'https://automark-react.onrender.com',
+        'https://automark-backend.onrender.com'
     ]
 
 class ProductionConfig(Config):
