@@ -2,7 +2,7 @@ import os
 import uuid
 import time
 import cloudinary
-import cloudinary.uploader
+from cloudinary import uploader  # Correctly import uploader module
 import fitz  # PyMuPDF
 from flask import current_app, request
 from werkzeug.utils import secure_filename
@@ -12,6 +12,41 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from dotenv import load_dotenv
+
+def ensure_cloudinary_config():
+    """
+    Ensure Cloudinary is properly configured with credentials from environment
+    
+    Returns:
+        bool: True if configured successfully, False otherwise
+    """
+    # Load environment variables first
+    load_dotenv()
+    
+    # Get Cloudinary credentials from environment
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    api_key = os.environ.get('CLOUDINARY_API_KEY')
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET')
+    
+    if not cloud_name or not api_key or not api_secret:
+        print("Cloudinary credentials not found in environment variables")
+        return False
+    
+    # Configure Cloudinary
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret
+    )
+    
+    # Verify configuration
+    config = cloudinary.config()
+    if not config.get('api_key'):
+        print("Cloudinary configuration failed")
+        return False
+        
+    print(f"Cloudinary configured successfully with cloud_name: {cloud_name}")
+    return True
 
 def allowed_file(filename):
     """
@@ -40,9 +75,6 @@ def save_file(file, directory='uploads'):
     Returns:
         str: URL of the saved file
     """
-    # Load environment variables first
-    load_dotenv()
-    
     # Generate unique filename
     _, ext = os.path.splitext(file.filename)
     unique_filename = f"{str(uuid.uuid4())}{ext}"
@@ -51,46 +83,39 @@ def save_file(file, directory='uploads'):
     try:
         print(f"Uploading file: {file.filename} to Cloudinary")
         
-        # Ensure Cloudinary configuration is set
-        # This will explicitly set the cloudinary configuration directly in this function
-        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
-        api_key = os.environ.get('CLOUDINARY_API_KEY')
-        api_secret = os.environ.get('CLOUDINARY_API_SECRET')
-        
-        if not cloud_name or not api_key or not api_secret:
-            print("Cloudinary credentials not found in environment variables")
-            raise ValueError("Cloudinary credentials not found in environment variables")
-        
-        # Configure cloudinary directly
-        cloudinary.config(
-            cloud_name=cloud_name,
-            api_key=api_key,
-            api_secret=api_secret
-        )
-        
-        # Check if configured correctly
-        if not cloudinary.config().get('api_key'):
-            raise ValueError("Cloudinary API key not configured properly")
-        
-        # Debug the configuration being used
-        print(f"Using Cloudinary configuration - cloud_name: {cloud_name}")
+        # Configure Cloudinary
+        if not ensure_cloudinary_config():
+            raise ValueError("Failed to configure Cloudinary")
         
         # Reset file position to beginning to ensure we can read the entire file
         file.seek(0)
         
+        # Read file data into memory
+        file_data = file.read()
+        print(f"File read into memory, size: {len(file_data)} bytes")
+        
         # Upload to Cloudinary with folder structure
         upload_folder = f"{directory}/{unique_filename.split('.')[0]}"
-        response = cloudinary.uploader.upload(
-            file,
-            resource_type="auto",
-            folder=upload_folder,
-            use_filename=True,
-            unique_filename=True
-        )
+        print(f"Attempting Cloudinary upload to folder: {upload_folder}")
         
-        # Return Cloudinary URL
-        print(f"File successfully uploaded to Cloudinary: {response['secure_url']}")
-        return response['secure_url']
+        try:
+            response = uploader.upload(
+                file_data,
+                resource_type="auto",
+                folder=upload_folder,
+                use_filename=True,
+                filename=file.filename,
+                unique_filename=True
+            )
+            print(f"Cloudinary upload successful, response type: {type(response)}")
+            
+            # Return Cloudinary URL
+            print(f"File successfully uploaded to Cloudinary: {response['secure_url']}")
+            return response['secure_url']
+            
+        except Exception as cloudinary_error:
+            print(f"Specific Cloudinary upload error: {str(cloudinary_error)}")
+            raise cloudinary_error
         
     except Exception as e:
         # Log the error
@@ -153,36 +178,22 @@ def convert_pdf_to_image_and_upload(pdf_file, folder):
         list: List of URLs for the uploaded images
     """
     try:
-        # Load environment variables
-        load_dotenv()
-        
-        # Ensure Cloudinary configuration is set
-        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
-        api_key = os.environ.get('CLOUDINARY_API_KEY')
-        api_secret = os.environ.get('CLOUDINARY_API_SECRET')
-        
-        if not cloud_name or not api_key or not api_secret:
-            print("Cloudinary credentials not found in environment variables")
-            raise ValueError("Cloudinary credentials not found in environment variables")
-        
-        # Configure cloudinary directly
-        cloudinary.config(
-            cloud_name=cloud_name,
-            api_key=api_key,
-            api_secret=api_secret
-        )
-        
-        # Check if configured correctly
-        if not cloudinary.config().get('api_key'):
-            raise ValueError("Cloudinary API key not configured properly")
-            
-        # Debug the configuration being used
-        print(f"Using Cloudinary configuration - cloud_name: {cloud_name}")
+        # Configure Cloudinary
+        if not ensure_cloudinary_config():
+            raise ValueError("Failed to configure Cloudinary")
         
         # Read PDF content
+        pdf_file.seek(0)
         pdf_content = pdf_file.read()
+        
+        # Print debug info
+        print(f"PDF content read, size: {len(pdf_content)} bytes")
+        
         pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
         uploaded_urls = []
+        
+        # Print PDF info
+        print(f"PDF opened successfully, {pdf_document.page_count} pages found")
 
         # Convert each page to image
         for page_num in range(pdf_document.page_count):
@@ -205,7 +216,7 @@ def convert_pdf_to_image_and_upload(pdf_file, folder):
                 max_attempts = 3
                 for attempt in range(max_attempts):
                     try:
-                        upload_result = cloudinary.uploader.upload(
+                        upload_result = uploader.upload(
                             img_byte_array,
                             folder=folder,
                             quality='auto:best',
