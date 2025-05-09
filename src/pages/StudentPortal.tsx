@@ -115,19 +115,24 @@ const StudentPortal: React.FC = () => {
 
     try {
       setLoading(true);
+      setMessage({ text: 'Uploading your answer sheet...', type: 'info' });
+      
       const data = await examAPI.submitAnswer(examCode, answerSheet);
       
       if (data.success) {
+        setLoading(false);
         setMessage({ 
-          text: 'Answer sheet submitted successfully! Your grade will be visible once approved by the teacher.', 
+          text: data.message || 'Answer sheet submitted successfully! Awaiting teacher to publish grade.', 
           type: 'success' 
         });
+        
         setExamCode('');
         setAnswerSheet(null);
         
         // Refresh submissions list
         fetchSubmissions();
       } else {
+        setLoading(false);
         setMessage({ 
           text: data.message || 'Error submitting answer sheet', 
           type: 'error' 
@@ -135,12 +140,11 @@ const StudentPortal: React.FC = () => {
       }
     } catch (error) {
       console.error('Error submitting answer:', error);
+      setLoading(false);
       setMessage({ 
         text: 'An error occurred. Please try again.', 
         type: 'error' 
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -460,7 +464,7 @@ const StudentPortal: React.FC = () => {
                     color: '#64748b',
                     textAlign: 'center',
                   }}>
-                    Grade pending teacher review
+                    Awaiting teacher to publish grade
                   </div>
                 )}
               </div>

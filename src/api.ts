@@ -50,6 +50,53 @@ export const authAPI = {
     }
     
     return response.json();
+  },
+  
+  checkSession: async () => {
+    console.log("API: Checking session status. Cookies:", document.cookie);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/check-session`, {
+        ...commonFetchOptions
+      });
+      
+      console.log("API: Session check response status:", response.status);
+      
+      if (!response.ok) {
+        console.warn('API: Session check failed:', response.status);
+        return { success: false, authenticated: false };
+      }
+      
+      const data = await response.json();
+      console.log("API: Session check data:", data);
+      return data;
+    } catch (error) {
+      console.error("API: Session check exception:", error);
+      return { success: false, authenticated: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+  
+  logout: async () => {
+    console.log("API: Logging out. Current cookies:", document.cookie);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/logout`, {
+        method: 'POST',
+        ...commonFetchOptions
+      });
+      
+      console.log("API: Logout response status:", response.status);
+      
+      if (!response.ok) {
+        console.warn('API: Logout failed:', response.status);
+        return { success: false };
+      }
+      
+      const data = await response.json();
+      console.log("API: Logout successful, cookies after logout:", document.cookie);
+      return data;
+    } catch (error) {
+      console.error("API: Logout exception:", error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   }
 };
 
@@ -224,6 +271,46 @@ export const examAPI = {
       return data;
     } catch (error) {
       console.error("API: Publish grade exception:", error);
+      throw error;
+    }
+  },
+
+  updateGrade: async (submissionId: number, grade: string) => {
+    console.log("API: Updating grade for submission:", submissionId);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/update_grade/${submissionId}`, {
+        method: 'POST',
+        headers: {
+          ...commonFetchOptions.headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ grade }),
+        credentials: commonFetchOptions.credentials,
+      });
+      
+      console.log("API: Update grade response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API: Update grade error:', response.status, errorText);
+        
+        // Try to parse JSON response
+        try {
+          const errorData = JSON.parse(errorText);
+          return {
+            success: false,
+            message: errorData.message || `Failed to update grade: ${response.status}`
+          };
+        } catch (parseError) {
+          throw new Error(`Failed to update grade: ${response.status}`);
+        }
+      }
+      
+      const data = await response.json();
+      console.log("API: Update grade data:", data);
+      return data;
+    } catch (error) {
+      console.error("API: Update grade exception:", error);
       throw error;
     }
   }

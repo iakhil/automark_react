@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { examAPI } from '../api';
+import { examAPI, authAPI } from '../api';
 
 interface Exam {
   id: number;
@@ -13,9 +13,11 @@ interface Submission {
   id: number;
   student_name: string;
   exam_title: string;
+  exam_code?: string;
   submitted_at: string;
   is_published: boolean;
   answer_sheet_url?: string;
+  grade?: string;
 }
 
 const TeacherPortal: React.FC = () => {
@@ -30,6 +32,8 @@ const TeacherPortal: React.FC = () => {
   const [message, setMessage] = useState<{ text: string; type: string } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
+  const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(null);
+  const [editedGrade, setEditedGrade] = useState<string>('');
 
   // Fetch exams from API
   const fetchExams = async () => {
@@ -91,41 +95,69 @@ const TeacherPortal: React.FC = () => {
   };
 
   useEffect(() => {
-    // Check if user is logged in
-    const user = localStorage.getItem('user');
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    console.log("TeacherPortal: useEffect - Initializing component");
+    
+    const checkAuth = async () => {
+      try {
+        // First check if we have a valid session
+        const sessionResponse = await authAPI.checkSession();
+        
+        if (!sessionResponse.authenticated) {
+          console.warn("TeacherPortal: No valid session found, checking local storage");
+          
+          // Check if user is logged in via localStorage
+          const user = localStorage.getItem('user');
+          if (!user) {
+            console.warn("TeacherPortal: No user in localStorage, redirecting to login");
+            navigate('/login');
+            return;
+          }
 
-    // Parse user data
-    const userData = JSON.parse(user);
-    if (userData.role !== 'teacher') {
-      navigate('/login');
-      return;
-    }
+          // Parse user data
+          const userData = JSON.parse(user);
+          if (userData.role !== 'teacher') {
+            console.warn("TeacherPortal: User is not a teacher, redirecting to login");
+            navigate('/login');
+            return;
+          }
 
-    // If we have a stored session ID, ensure it's in the cookie
-    const sessionId = localStorage.getItem('sessionId');
-    if (sessionId && !document.cookie.includes('session=')) {
-      console.log("Restoring session from localStorage");
-      document.cookie = `session=${sessionId}; path=/`;
-      
-      // Give the cookie a moment to set before making API calls
-      setTimeout(() => {
-        fetchExams();
-        fetchSubmissions();
-      }, 500);
-    } else {
-      // Cookie already exists, fetch data immediately
-      fetchExams();
-      fetchSubmissions();
-    }
-
-    // Fetch data when component mounts
-    console.log("TeacherPortal: useEffect - Initializing, attempting to fetch exams and submissions.");
-    fetchExams();
-    fetchSubmissions();
+          // If we have a stored session ID, ensure it's in the cookie
+          const sessionId = localStorage.getItem('sessionId');
+          if (sessionId) {
+            console.log("TeacherPortal: Restoring session from localStorage");
+            document.cookie = `session=${sessionId}; path=/; SameSite=Lax`;
+            
+            // Try checking session again after restoring cookie
+            setTimeout(async () => {
+              const retrySession = await authAPI.checkSession();
+              if (!retrySession.authenticated) {
+                console.warn("TeacherPortal: Session restoration failed, redirecting to login");
+                navigate('/login');
+                return;
+              }
+              
+              // Session is now valid, load data
+              fetchExams();
+              fetchSubmissions();
+            }, 500);
+          } else {
+            // No session ID stored, redirect to login
+            console.warn("TeacherPortal: No session ID in localStorage, redirecting to login");
+            navigate('/login');
+          }
+        } else {
+          console.log("TeacherPortal: Valid session found, loading data");
+          // We have a valid session, load the data
+          fetchExams();
+          fetchSubmissions();
+        }
+      } catch (error) {
+        console.error("TeacherPortal: Error checking authentication:", error);
+        navigate('/login');
+      }
+    };
+    
+    checkAuth();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -159,10 +191,25 @@ const TeacherPortal: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('sessionId');
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      // Call the backend logout endpoint to clear session
+      const response = await authAPI.logout();
+      console.log("TeacherPortal: Logout response:", response);
+      
+      // Clear local storage regardless of response
+      localStorage.removeItem('user');
+      localStorage.removeItem('sessionId');
+      
+      // Redirect to login page
+      navigate('/login');
+    } catch (error) {
+      console.error("TeacherPortal: Error during logout:", error);
+      // Still log out on the client side even if server request failed
+      localStorage.removeItem('user');
+      localStorage.removeItem('sessionId');
+      navigate('/login');
+    }
   };
 
   const publishGrade = async (submissionId: number) => {
@@ -194,6 +241,51 @@ const TeacherPortal: React.FC = () => {
     }
   };
 
+  const startEditingGrade = (submission: Submission) => {
+    setEditingSubmissionId(submission.id);
+    setEditedGrade(submission.grade || '');
+  };
+
+  const cancelEditingGrade = () => {
+    setEditingSubmissionId(null);
+    setEditedGrade('');
+  };
+
+  const saveEditedGrade = async (submissionId: number) => {
+    if (!editedGrade.trim()) {
+      setMessage({ text: 'Grade cannot be empty', type: 'error' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("TeacherPortal: Saving edited grade for submission:", submissionId);
+      
+      const data = await examAPI.updateGrade(submissionId, editedGrade);
+      console.log("TeacherPortal: Update grade response:", data);
+      
+      if (data.success) {
+        console.log("TeacherPortal: Grade updated successfully");
+        // Update the local state
+        setSubmissions(
+          submissions.map(sub => 
+            sub.id === submissionId ? { ...sub, grade: editedGrade } : sub
+          )
+        );
+        setMessage({ text: 'Grade updated successfully!', type: 'success' });
+        setEditingSubmissionId(null); // Exit edit mode
+      } else {
+        console.error("TeacherPortal: Failed to update grade:", data.message);
+        setMessage({ text: data.message || 'Failed to update grade', type: 'error' });
+      }
+    } catch (error) {
+      console.error('TeacherPortal: Error updating grade:', error);
+      setMessage({ text: 'An error occurred. Please try again.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{
       fontFamily: "'Poppins', sans-serif",
@@ -218,7 +310,7 @@ const TeacherPortal: React.FC = () => {
             margin: 0,
             fontSize: '2.5em',
             textAlign: 'center',
-          }}>Teacher Portal</h1>
+          }}>Grade Portal</h1>
           <button 
             onClick={handleLogout}
             style={{
@@ -689,6 +781,106 @@ const TeacherPortal: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Grade display/edit section */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <div style={{
+                      fontWeight: 500,
+                      marginBottom: '8px',
+                      color: '#2c3e50',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>Grade & Feedback:</span>
+                      {!submission.is_published && editingSubmissionId !== submission.id && (
+                        <button
+                          onClick={() => startEditingGrade(submission)}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#e2e8f0',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                    
+                    {editingSubmissionId === submission.id ? (
+                      <div>
+                        <textarea
+                          value={editedGrade}
+                          onChange={(e) => setEditedGrade(e.target.value)}
+                          style={{
+                            width: '100%',
+                            minHeight: '200px',
+                            padding: '10px',
+                            border: '2px solid #e1e8ed',
+                            borderRadius: '8px',
+                            fontFamily: 'inherit',
+                            fontSize: '14px',
+                            resize: 'vertical',
+                            marginBottom: '10px',
+                          }}
+                        />
+                        <div style={{
+                          display: 'flex',
+                          gap: '10px',
+                          justifyContent: 'flex-end',
+                        }}>
+                          <button
+                            onClick={cancelEditingGrade}
+                            style={{
+                              padding: '8px 16px',
+                              background: '#e2e8f0',
+                              color: '#475569',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                            }}
+                            disabled={loading}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => saveEditedGrade(submission.id)}
+                            style={{
+                              padding: '8px 16px',
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                            }}
+                            disabled={loading}
+                          >
+                            {loading ? 'Saving...' : 'Save Changes'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          background: '#f8fafc',
+                          padding: '15px',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          lineHeight: '1.5',
+                          color: '#475569',
+                          maxHeight: '300px',
+                          overflowY: 'auto',
+                        }}
+                        dangerouslySetInnerHTML={{ __html: submission.grade || 'No grade provided yet' }}
+                      />
+                    )}
+                  </div>
+
                   {!submission.is_published && (
                     <button
                       onClick={() => publishGrade(submission.id)}
@@ -704,7 +896,7 @@ const TeacherPortal: React.FC = () => {
                         transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                       }}
                       className="button"
-                      disabled={loading}
+                      disabled={loading || editingSubmissionId === submission.id}
                     >
                       {loading ? 'Processing...' : 'Publish Grade'}
                     </button>
