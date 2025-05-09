@@ -25,9 +25,10 @@ class Config:
         'http://127.0.0.1:5000',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-        'https://automark-react.onrender.com'
+        'https://automark-react.onrender.com',
+        'https://automark-backend.onrender.com'
     ]
-    CORS_HEADERS = ['Content-Type', 'Authorization', 'Cookie']
+    CORS_HEADERS = ['Content-Type', 'Authorization', 'Access-Control-Allow-Credentials', 'Access-Control-Allow-Origin']
     CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
     
     # Cloudinary settings

@@ -27,7 +27,8 @@ def init_extensions(app):
          supports_credentials=True,
          allow_headers=app.config['CORS_HEADERS'],
          methods=app.config['CORS_METHODS'],
-         expose_headers=['Set-Cookie', 'Content-Type', 'Authorization'])
+         expose_headers=['Set-Cookie', 'Content-Type', 'Authorization'],
+         allow_credentials=True)
     
     # Configure Cloudinary
     try:
