@@ -29,6 +29,7 @@ def create_app(config_name='default'):
     app.config['SESSION_FILE_DIR'] = os.path.join(os.getcwd(), 'flask_session')
     app.config['SESSION_PERMANENT'] = True
     app.config['SESSION_USE_SIGNER'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None' 
     app.config['SESSION_FILE_THRESHOLD'] = 100  # Number of sessions stored in memory before writing to disk
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)  # Session expiry time
     
