@@ -89,6 +89,7 @@ def create_app(config_name='default'):
     
     return app
 
+app = create_app(os.getenv('FLASK_CONFIG', 'development'))
 # Run the app when this script is executed directly
 if __name__ == '__main__':
     app = create_app(os.getenv('FLASK_CONFIG', 'development'))
